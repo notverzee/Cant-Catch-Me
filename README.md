@@ -1,16 +1,16 @@
 # Can't Catch Me
 
-A deep-sea submarine game for online co-op, local co-op, or solo play. The Fisher hooks unusual sea life while the Repairer keeps the submarine's systems running.
+A deep-sea submarine game for online co-op, local co-op, or solo play. The Fisher hooks unusual sea life while the Engineer keeps the submarine's systems running.
 
 ## Play
 
 Open `index.html` from a static web host such as GitHub Pages. The **Play** menu offers:
 
 - **Online crew:** Host a voyage and share its six-character room code, or join a host's room. Game messages pass through the WebSocket relay; players do not need a direct peer-to-peer connection.
-- **Local co-op:** Two players share one device. The Fisher uses WASD and Space; the Repairer uses the arrow keys and mouse.
+- **Local co-op:** Two players share one device and choose Fisher or Engineer before the story begins. Player 1 picks first; Player 2 takes the remaining station. The Fisher uses WASD and Space; the Engineer uses the arrow keys and mouse.
 - **Solo dive:** One player handles both stations using the local controls.
 
-Every expedition opens with a short family-log cutscene. During the dive, the Fisher can hook fish through aim, rhythm, reel, and shoal encounters; the Repairer handles system faults, including a robotic-arm barnacle scraper. Online crews can send preset quick-chat messages.
+Every expedition opens with a short family-log cutscene. During the dive, the Fisher can hook fish through aim, rhythm, reel, and shoal encounters; the Engineer handles system faults, including a robotic-arm barnacle scraper. Online crews can send preset quick-chat messages.
 
 ## Deploy the online relay
 
@@ -25,10 +25,11 @@ Room codes and connections are held in memory; redeploying or restarting the rel
 ### Controls
 
 - **Local Fisher:** WASD to steer during aim and shoal challenges and match rhythm cues; Space casts, reels, or catches a fish under the shoal cursor.
-- **Local Repairer:** use the arrow keys for alignment/engine challenges and the mouse or left click for the repair board and tools.
+- **Local Engineer:** use the arrow keys for alignment/engine challenges and the mouse or left click for the repair board and tools.
 - **Online Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot or click shoal fish, arrow keys during rhythm challenges, and Space (or the on-screen button) to cast or reel.
 - **Online Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pump controls and barnacle targets are clickable, and welding requires tracing the seam with a press-and-drag. Quick chat is available below the stations.
-- **Solo:** Use the local Fisher and Repairer controls to run both stations.
+- **Online crew:** Both players choose a station before the story begins. The first accepted choice reserves that station; the other player chooses the remaining one.
+- **Solo:** Use the local Fisher and Engineer controls to run both stations.
 
 ### Expedition loop
 

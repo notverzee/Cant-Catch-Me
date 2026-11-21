@@ -77,7 +77,7 @@
             <p>Take the submarine below the safe line. Track strange life, bring in the catch, and keep the pressure from winning.</p>
             <div class="info-roles">
               <div><span class="info-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v7a5 5 0 0 0 10 0V4m-5 7v3a5 5 0 0 0 5 5h4m-3-3 3 3-3 3"/></svg></span><span><b>Fisher</b><small>Find, hook, and reel in deep-sea species.</small></span></div>
-              <div><span class="info-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6 18 2l4 4-4 4M20 8l-9 9m-3-2-5 5 3 3 5-5m1-4-4-4 4-4 4 4"/></svg></span><span><b>Repairer</b><small>Patch systems and keep the crew moving.</small></span></div>
+              <div><span class="info-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6 18 2l4 4-4 4M20 8l-9 9m-3-2-5 5 3 3 5-5m1-4-4-4 4-4 4 4"/></svg></span><span><b>Engineer</b><small>Patch systems and keep the crew moving.</small></span></div>
             </div>
             <p class="info-footnote">Sell each haul at a checkpoint to fund upgrades. A breached hull ends the expedition.</p>
           </section>
@@ -198,6 +198,26 @@
       </div>
     </section>
   </main>
+  <section class="role-overlay hidden" id="role-selection-overlay" role="dialog" aria-modal="true" aria-labelledby="role-selection-title">
+    <div class="role-panel">
+      <p class="eyebrow">CREW ASSIGNMENTS</p>
+      <h2 id="role-selection-title">Choose your station</h2>
+      <p id="role-selection-copy">Pick Fisher or Engineer.</p>
+      <div class="role-options">
+        <button class="role-card" type="button" data-role-choice="fisher">
+          <span class="role-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12c4-5 11-6 16 0-5 6-12 5-16 0Zm16 0 3-4v8l-3-4Z"/><circle cx="13" cy="11" r="1"/></svg></span>
+          <span><b>FISHER</b><small>Cast, catch, and steer the shoal.</small></span>
+          <span class="role-card-key">WASD · SPACE</span>
+        </button>
+        <button class="role-card" type="button" data-role-choice="engineer">
+          <span class="role-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 6 18 2l4 4-4 4m2-2-9 9m-3-2-5 5 3 3 5-5m1-4-4-4 4-4 4 4"/></svg></span>
+          <span><b>ENGINEER</b><small>Repair faults and keep the sub alive.</small></span>
+          <span class="role-card-key">ARROWS · MOUSE</span>
+        </button>
+      </div>
+      <div class="role-footer"><span id="role-selection-status" role="status" aria-live="polite"></span><button class="quiet-button" id="role-cancel" type="button">Back to menu</button></div>
+    </div>
+  </section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

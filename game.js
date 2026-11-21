@@ -46,12 +46,18 @@
   const pityThresholds = { legendary: 1000, mythic: 5000, treasure: 12500 };
   const chatPhrases = ["Fish on the line!", "Hull needs help!", "Harpoon is broken!", "Repair the engine!", "Restock bait at the checkpoint!"];
   const storyCards = [
-    { title: "A promise below the waves", text: "Your great-grandfather left home to find exotic fish for his family. They were poor, and he hoped a rare catch could give his children a safer future.", stage: "departure" },
-    { title: "The last signal", text: "His submarine never returned. Its hull imploded in the deepest water, leaving his remains and the lost vessel far below. Only a fading sonar trace remained.", stage: "descent" },
-    { title: "The next generation", text: "Now his great-grandchildren take the family sub into the abyss. Catch what you can, keep the hull alive, and recover their great-grandfather's remains and lost submarine to bring them home safely.", stage: "legacy" }
+    { title: "A promise below the waves", text: "Your great-grandfather's family was poor and buried in debt. He set out to catch exotic fish, hoping the haul could pay what they owed and give his children a future.", stage: "departure" },
+    { title: "The last signal", text: "His submarine imploded in the deepest water before he could return. His remains and the wreck were lost below, leaving only a fading sonar trace.", stage: "descent" },
+    { title: "The next generation", text: "Generations later, his great-grandchildren borrow a submarine and follow that trace. Catch exotic fish to lift the family out of debt, keep the borrowed sub alive, and bring their great-grandfather and his lost vessel home.", stage: "legacy" }
   ];
   const arrowKeys = ["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"];
-  const arrowGlyph = { ArrowUp: "↑", ArrowRight: "→", ArrowDown: "↓", ArrowLeft: "←" };
+  const arrowNames = { ArrowUp: "up", ArrowRight: "right", ArrowDown: "down", ArrowLeft: "left" };
+  const arrowPaths = {
+    ArrowUp: "M12 19V5m-6 6 6-6 6 6",
+    ArrowRight: "M5 12h14m-6-6 6 6-6 6",
+    ArrowDown: "M12 5v14m6-6-6 6-6-6",
+    ArrowLeft: "M19 12H5m6 6-6-6 6-6"
+  };
   const wasdKeys = { w: "ArrowUp", d: "ArrowRight", s: "ArrowDown", a: "ArrowLeft" };
   const weldPath = [[.02, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [.98, .5]];
   const boltSpots = [[.1, .18], [.32, .22], [.57, .15], [.84, .22], [.18, .72], [.43, .82], [.68, .68], [.89, .78], [.5, .47], [.27, .48]];
@@ -83,6 +89,12 @@
     shoalCursor: $("#shoal-cursor"),
     quickChat: $("#quick-chat"),
     buyBait: $("#buy-bait"),
+    roleSelectionOverlay: $("#role-selection-overlay"),
+    roleSelectionTitle: $("#role-selection-title"),
+    roleSelectionCopy: $("#role-selection-copy"),
+    roleSelectionStatus: $("#role-selection-status"),
+    roleCancel: $("#role-cancel"),
+    roleChoices: [...document.querySelectorAll("[data-role-choice]")],
     storyOverlay: $("#story-overlay"),
     storyTitle: $("#story-title"),
     storyText: $("#story-text"),
@@ -142,6 +154,11 @@
   let socketRole;
   let mode = "lobby";
   let localRole = "fisher";
+  let localRolePicks = [];
+  let onlineRolePicks = { host: null, client: null };
+  let roleSelectionContext = null;
+  let pendingOnlineRole = null;
+  let localFisherPlayer = 1;
   let selectedIssueId = null;
   let repairSignature = "";
   let hostTimer = null;
@@ -267,9 +284,125 @@
     socket = null;
     socketRole = null;
     if (pendingSocket && pendingSocket.readyState < WebSocket.CLOSING) pendingSocket.close();
+    roleSelectionContext = null;
+    pendingOnlineRole = null;
+    onlineRolePicks = { host: null, client: null };
+    el.roleSelectionOverlay.classList.add("hidden");
     el.joinForm.querySelector("button").disabled = false;
     setConnectionLabel("Crew not connected");
     showMessage(message, true);
+  }
+
+  function isGameRole(role) {
+    return role === "fisher" || role === "engineer";
+  }
+
+  function roleName(role) {
+    return role === "fisher" ? "Fisher" : "Engineer";
+  }
+
+  function updateRoleSelection(notice = "") {
+    const context = roleSelectionContext;
+    if (!context) return;
+    el.roleSelectionOverlay.classList.remove("hidden");
+    const localFirst = context === "local-player-1";
+    const localSecond = context === "local-player-2";
+    const side = context === "online-host" ? "host" : "client";
+    const isOnline = context === "online-host" || context === "online-client";
+    const chosenRole = isOnline ? onlineRolePicks[side] : null;
+    const otherRole = isOnline ? onlineRolePicks[side === "host" ? "client" : "host"] : localRolePicks[0];
+    const assigned = Boolean(chosenRole);
+    el.roleSelectionTitle.textContent = localFirst ? "Player 1, choose your station" : localSecond ? "Player 2, choose your station" : assigned || pendingOnlineRole ? "Station reserved" : "Choose your station";
+    if (localFirst) {
+      el.roleSelectionCopy.textContent = "Player 1 picks first. Player 2 will take the remaining station.";
+    } else if (localSecond) {
+      el.roleSelectionCopy.textContent = `Player 1 chose ${roleName(otherRole)}. Choose the remaining station.`;
+    } else if (assigned) {
+      el.roleSelectionCopy.textContent = `You are the ${roleName(chosenRole)}. Your crewmate will take the other station.`;
+    } else if (pendingOnlineRole) {
+      el.roleSelectionCopy.textContent = `You picked ${roleName(pendingOnlineRole)}. Waiting for the host to confirm the assignment.`;
+    } else if (otherRole) {
+      el.roleSelectionCopy.textContent = `Your crewmate chose ${roleName(otherRole)}. Choose the remaining station.`;
+    } else {
+      el.roleSelectionCopy.textContent = "Whoever chooses a station first gets it; the other player will take the remaining one.";
+    }
+    el.roleSelectionStatus.textContent = notice || (isOnline && assigned
+      ? "Waiting for your crewmate…"
+      : isOnline && pendingOnlineRole
+        ? "Waiting for the other crew member…"
+        : "");
+    for (const button of el.roleChoices) {
+      const role = button.dataset.roleChoice;
+      const unavailable = localSecond && role === otherRole
+        || isOnline && role === otherRole
+        || isOnline && (assigned || Boolean(pendingOnlineRole));
+      button.disabled = unavailable;
+      button.classList.toggle("selected", chosenRole === role);
+      button.setAttribute("aria-pressed", String(chosenRole === role));
+    }
+  }
+
+  function openRoleSelection(context) {
+    roleSelectionContext = context;
+    updateRoleSelection();
+    el.roleChoices.find((button) => !button.disabled)?.focus();
+  }
+
+  function beginLocalRoleSelection() {
+    localRolePicks = [];
+    localFisherPlayer = 1;
+    openRoleSelection("local-player-1");
+  }
+
+  function sendRoleStatus(notice = "") {
+    if (mode === "host") {
+      broadcast({ type: "role-status", roles: onlineRolePicks, notice });
+      updateRoleSelection(notice);
+    }
+  }
+
+  function chooseRole(role) {
+    if (!isGameRole(role) || !roleSelectionContext) return;
+    if (roleSelectionContext === "local-player-1") {
+      localRolePicks[0] = role;
+      openRoleSelection("local-player-2");
+      return;
+    }
+    if (roleSelectionContext === "local-player-2") {
+      localRolePicks[1] = role;
+      localFisherPlayer = localRolePicks[0] === "fisher" ? 1 : 2;
+      roleSelectionContext = null;
+      enterGame("local", localRolePicks[0], initialState());
+      return;
+    }
+    if (roleSelectionContext === "online-host") {
+      if (onlineRolePicks.host || onlineRolePicks.client === role) return;
+      onlineRolePicks.host = role;
+      sendRoleStatus();
+      if (onlineRolePicks.client) finishOnlineRoleSelection();
+      return;
+    }
+    if (roleSelectionContext === "online-client") {
+      if (pendingOnlineRole || onlineRolePicks.client || onlineRolePicks.host === role) return;
+      pendingOnlineRole = role;
+      updateRoleSelection();
+      if (!broadcast({ type: "role-choice", role })) {
+        pendingOnlineRole = null;
+        updateRoleSelection("Could not send your choice. Check the connection and try again.");
+      }
+    }
+  }
+
+  function finishOnlineRoleSelection() {
+    if (!isGameRole(onlineRolePicks.host) || !isGameRole(onlineRolePicks.client)) return;
+    const hostRole = onlineRolePicks.host;
+    roleSelectionContext = null;
+    pendingOnlineRole = null;
+    enterGame("host", hostRole, initialState());
+    setConnectionLabel("Crew connected", true);
+    el.netStatus.textContent = "Online crew connected";
+    sendState();
+    toast("Crew stations assigned. Happy hunting!");
   }
 
   function enterGame(nextMode, role, state) {
@@ -277,11 +410,14 @@
     mode = nextMode;
     localRole = role;
     gameState = state || initialState();
+    roleSelectionContext = null;
+    pendingOnlineRole = null;
+    el.roleSelectionOverlay.classList.add("hidden");
     el.lobby.classList.add("hidden");
     el.game.classList.remove("hidden");
     $(".shell").classList.add("in-game");
     el.roleBadge.textContent = role.toUpperCase();
-    el.netStatus.textContent = mode === "local" ? "Local co-op · Fisher WASD + Space · Repairer arrows + mouse" : mode === "solo" ? "Solo expedition · WASD + Space · arrows + mouse" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
+    el.netStatus.textContent = mode === "local" ? "Local co-op · Fisher WASD + Space · Engineer arrows + mouse" : mode === "solo" ? "Solo expedition · WASD + Space · arrows + mouse" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
     if (mode === "client") setConnectionLabel("Crew connected", true);
     selectedIssueId = null;
     repairSignature = "";
@@ -328,7 +464,12 @@
     }
     mode = "lobby";
     gameState = null;
+    localRolePicks = [];
+    onlineRolePicks = { host: null, client: null };
+    roleSelectionContext = null;
+    pendingOnlineRole = null;
     storyActive = false;
+    el.roleSelectionOverlay.classList.add("hidden");
     el.game.classList.add("hidden");
     el.storyOverlay.classList.add("hidden");
     $(".shell").classList.remove("in-game");
@@ -491,12 +632,21 @@
   function activateHostConnection() {
     if (!socket || socket.readyState !== WebSocket.OPEN || socketRole !== "host") return;
     const wasWaiting = mode === "lobby";
-    if (wasWaiting) enterGame("host", "fisher", gameState || initialState());
+    if (wasWaiting) {
+      mode = "host";
+      gameState = initialState();
+      onlineRolePicks = { host: null, client: null };
+      pendingOnlineRole = null;
+      openRoleSelection("online-host");
+    }
     if (mode !== "host") return;
     setConnectionLabel("Crew connected", true);
-    el.netStatus.textContent = "Online crew connected";
-    sendState();
-    if (wasWaiting) toast("Crew connected. Happy hunting!");
+    if (roleSelectionContext === "online-host") sendRoleStatus();
+    else {
+      el.netStatus.textContent = "Online crew connected";
+      sendState();
+    }
+    if (wasWaiting) toast("Crew connected. Choose your stations.");
   }
 
   function joinRoom(code) {
@@ -547,11 +697,30 @@
     if (!message || typeof message !== "object") return;
     if (message.type === "hello" && mode === "host") {
       activateHostConnection();
+    } else if (message.type === "role-choice" && mode === "host") {
+      if (!isGameRole(message.role) || onlineRolePicks.client) return;
+      if (message.role === onlineRolePicks.host) {
+        sendRoleStatus(`${roleName(message.role)} is taken. Choose the remaining station.`);
+        return;
+      }
+      onlineRolePicks.client = message.role;
+      sendRoleStatus();
+      if (onlineRolePicks.host) finishOnlineRoleSelection();
+    } else if (message.type === "role-status" && mode === "lobby" && socketRole === "client") {
+      if (!message.roles || typeof message.roles !== "object") return;
+      onlineRolePicks = {
+        host: isGameRole(message.roles.host) ? message.roles.host : null,
+        client: isGameRole(message.roles.client) ? message.roles.client : null
+      };
+      pendingOnlineRole = null;
+      if (roleSelectionContext !== "online-client") openRoleSelection("online-client");
+      updateRoleSelection(typeof message.notice === "string" ? message.notice : "");
     } else if (message.type === "action" && (mode === "host" || isSharedControlMode())) {
-      applyAction(message.action, message.data || {}, senderRole);
+      const actionRole = mode === "host" ? onlineRolePicks.client : senderRole;
+      if (isGameRole(actionRole)) applyAction(message.action, message.data || {}, actionRole);
     } else if (message.type === "state" && mode !== "host" && message.state && typeof message.state === "object") {
       clearConnectionTimer();
-      if (mode === "lobby") enterGame("client", "engineer", message.state);
+      if (mode === "lobby") enterGame("client", isGameRole(message.role) ? message.role : "engineer", message.state);
       else gameState = message.state;
       render();
     } else if (message.type === "notice" && typeof message.text === "string") {
@@ -574,7 +743,7 @@
   }
 
   function sendState() {
-    if (mode === "host") broadcast({ type: "state", state: gameState });
+    if (mode === "host") broadcast({ type: "state", state: gameState, role: onlineRolePicks.client });
   }
 
   function sendNotice(message, warning = false) {
@@ -706,7 +875,7 @@
       if (name.includes("arowana")) details += '<path d="m24 45-12-4 3 5-3 4 12-1"/>';
     }
 
-    return `<svg viewBox="0 0 160 90" aria-hidden="true"><g fill="${bodyColor}" stroke="${finColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}${details}</g></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" aria-hidden="true"><g fill="${bodyColor}" stroke="${finColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}${details}</g></svg>`;
   }
 
   function makeSwimmers(rarity) {
@@ -1096,13 +1265,26 @@
     return button;
   }
 
+  function makeArrowIcon(key) {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.classList.add("direction-arrow");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", arrowPaths[key]);
+    icon.append(path);
+    return icon;
+  }
+
   function makeSequencePreview(values, glyph = (value) => String(value + 1)) {
     const preview = document.createElement("div");
     preview.className = "sequence-preview";
     preview.setAttribute("aria-label", "Memorize the signal sequence");
     values.forEach((value, index) => {
       const light = document.createElement("span");
-      light.textContent = glyph(value);
+      const mark = glyph(value);
+      if (mark instanceof Element) light.append(mark);
+      else light.textContent = String(mark);
       light.style.animationDelay = `${index * .34}s`;
       preview.append(light);
     });
@@ -1256,7 +1438,8 @@
       fish.sequence.forEach((key, index) => {
         const span = document.createElement("span");
         span.className = `rhythm-key${index < fish.seqIndex ? " hit" : ""}${index === fish.seqIndex ? " next" : ""}`;
-        span.textContent = arrowGlyph[key];
+        span.append(makeArrowIcon(key));
+        span.setAttribute("aria-label", `Direction ${arrowNames[key]}`);
         span.setAttribute("role", "button");
         span.tabIndex = canFisherAct() && !harpoonOffline ? 0 : -1;
         span.setAttribute("aria-disabled", String(harpoonOffline));
@@ -1397,18 +1580,25 @@
         const reading = document.createElement("span");
         reading.className = "alignment-reading";
         dial.append(submarine, level, reading);
-        const left = makeButton("↶", { repair: "align", direction: "-1" }, "alignment-button");
+        const left = makeButton("", { repair: "align", direction: "-1" }, "alignment-button");
         left.setAttribute("aria-label", "Trim left");
-        const right = makeButton("↷", { repair: "align", direction: "1" }, "alignment-button");
+        left.append(makeArrowIcon("ArrowLeft"));
+        const right = makeButton("", { repair: "align", direction: "1" }, "alignment-button");
         right.setAttribute("aria-label", "Trim right");
+        right.append(makeArrowIcon("ArrowRight"));
         controls.append(left, dial, right);
         el.repairChallenge.append(controls);
       } else if (issue.type === "engine") {
-        const preview = makeSequencePreview(issue.pattern, (key) => arrowGlyph[key]);
+        const preview = makeSequencePreview(issue.pattern, makeArrowIcon);
         el.repairChallenge.append(preview);
         const buttons = document.createElement("div");
         buttons.className = "sequence-grid arrow-grid";
-        arrowKeys.forEach((key) => buttons.append(makeButton(arrowGlyph[key], { repair: "engine", key })));
+        arrowKeys.forEach((key) => {
+          const button = makeButton("", { repair: "engine", key });
+          button.setAttribute("aria-label", `Press ${arrowNames[key]}`);
+          button.append(makeArrowIcon(key));
+          buttons.append(button);
+        });
         el.repairChallenge.append(buttons);
       } else if (issue.type === "valve") {
         const valve = makeButton("", { repair: "turn" }, "mini-button valve-button");
@@ -1582,8 +1772,24 @@
   function render() {
     if (!gameState) return;
     el.roleBadge.textContent = mode === "local" ? "LOCAL CREW" : mode === "solo" ? "SOLO PILOT" : localRole.toUpperCase();
-    el.fisherOwner.textContent = mode === "local" ? "LOCAL PLAYER 1" : mode === "solo" ? "YOU" : mode === "host" ? "YOU" : "CREWMATE";
-    el.engineerOwner.textContent = mode === "local" ? "LOCAL PLAYER 2" : mode === "solo" ? "YOU" : mode === "host" ? (socket ? "CREWMATE" : "WAITING") : "YOU";
+    el.fisherOwner.textContent = mode === "local"
+      ? `LOCAL PLAYER ${localFisherPlayer}`
+      : mode === "solo"
+        ? "YOU"
+        : localRole === "fisher"
+          ? "YOU"
+          : mode === "host" && !onlineRolePicks.client
+            ? "WAITING"
+            : "CREWMATE";
+    el.engineerOwner.textContent = mode === "local"
+      ? `LOCAL PLAYER ${localFisherPlayer === 1 ? 2 : 1}`
+      : mode === "solo"
+        ? "YOU"
+        : localRole === "engineer"
+          ? "YOU"
+          : mode === "host" && !onlineRolePicks.client
+            ? "WAITING"
+            : "CREWMATE";
     el.depth.textContent = Math.floor(gameState.depth);
     el.gold.textContent = Math.floor(gameState.gold);
     el.caughtCount.textContent = gameState.caught;
@@ -1773,8 +1979,10 @@
         showMessage("Copy was blocked by the browser. Select the room code and copy it manually.", true);
       }
     });
-    el.localButton.addEventListener("click", () => enterGame("local", "fisher", initialState()));
+    el.localButton.addEventListener("click", beginLocalRoleSelection);
     el.soloButton.addEventListener("click", () => enterGame("solo", "fisher", initialState()));
+    el.roleChoices.forEach((button) => button.addEventListener("click", () => chooseRole(button.dataset.roleChoice)));
+    el.roleCancel.addEventListener("click", returnToLobby);
     el.leaveButton.addEventListener("click", returnToLobby);
     el.storyContinue.addEventListener("click", advanceStory);
     $("#restart-button").addEventListener("click", () => sendAction("restart"));
