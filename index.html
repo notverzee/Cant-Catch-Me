@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071b2b">
+  <title>Can't Catch Me — Deep Sea Co-op</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="assets/manifest.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Can't Catch Me home">
+        <span class="brand-mark" aria-hidden="true">⌁</span>
+        <span>CAN'T CATCH ME <small>DEEP SEA CO-OP</small></span>
+      </a>
+      <div class="top-status"><span class="status-dot"></span><span id="connection-label">Crew not connected</span></div>
+    </header>
+
+    <section class="lobby" id="lobby">
+      <div class="lobby-copy">
+        <p class="eyebrow">TWO CREW. ONE VERY FRAGILE SUB.</p>
+        <h1>Keep the boat afloat.<br><span>Bring home the big one.</span></h1>
+        <p class="intro">One player works the fishing grounds. The other keeps the submarine in one piece. Neither job stays easy for long.</p>
+        <div class="role-preview">
+          <div class="preview-card fisher-preview"><span class="preview-icon">⌁</span><div><b>THE FISHER</b><small>Find, hook and reel in deep-sea rarities.</small></div></div>
+          <div class="preview-card engineer-preview"><span class="preview-icon">✳</span><div><b>THE ENGINEER</b><small>Race between rooms to keep systems running.</small></div></div>
+        </div>
+      </div>
+      <div class="lobby-panel">
+        <div class="panel-heading"><span class="eyebrow">START YOUR EXPEDITION</span><span class="panel-index">01 / CREW UP</span></div>
+        <button class="primary-button" id="host-button"><span>Make a room</span><span aria-hidden="true">↗</span></button>
+        <div class="room-display hidden" id="room-display">
+          <span class="field-label">SHARE THIS ROOM CODE</span>
+          <div class="room-code-row"><code id="room-code">------</code><button class="copy-button" id="copy-code" aria-label="Copy room code">COPY</button></div>
+          <p class="field-hint">Your friend chooses “Join a room” and enters this code.</p>
+        </div>
+        <div class="divider"><span>OR JOIN YOUR CREW</span></div>
+        <form class="join-form" id="join-form">
+          <label class="field-label" for="join-code">ROOM CODE</label>
+          <div class="join-row"><input id="join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Room code"><button class="secondary-button" type="submit">Join <span aria-hidden="true">→</span></button></div>
+        </form>
+        <button class="practice-link" id="practice-button">Try a solo practice run <span aria-hidden="true">→</span></button>
+        <p class="connection-message" id="connection-message" role="status"></p>
+      </div>
+      <div class="lobby-footer"><span>BUILT FOR TWO, BEST PLAYED WITH A FRIEND</span><span>ONLINE CO-OP · NO ACCOUNT NEEDED</span></div>
+    </section>
+
+    <section class="game hidden" id="game">
+      <div class="game-heading">
+        <div><p class="eyebrow" id="expedition-label">EXPEDITION 001</p><h2>Pelagic Passage</h2></div>
+        <div class="game-heading-right"><span class="role-badge" id="role-badge">FISHER</span><button class="quiet-button" id="leave-button">Leave voyage</button></div>
+      </div>
+
+      <section class="voyage-strip" aria-label="Voyage status">
+        <div class="stat"><span>DEPTH</span><b><span id="depth">0</span><small> m</small></b></div>
+        <div class="stat"><span>CREW GOLD</span><b><span id="gold">0</span><small> ◈</small></b></div>
+        <div class="stat"><span>FISH CAUGHT</span><b id="caught-count">0</b></div>
+        <div class="checkpoint-stat"><div><span>NEXT CHECKPOINT</span><b><span id="checkpoint-distance">250</span> m</b></div><div class="meter"><i id="progress-meter"></i></div></div>
+      </section>
+
+      <section class="sub-status" aria-label="Submarine systems">
+        <div class="sub-art"><img id="sub-image" alt="" hidden><span class="sub-fallback" aria-hidden="true">◉</span></div>
+        <div class="system-meter"><div class="system-label"><span>HULL</span><b id="hull-value">100%</b></div><div class="meter"><i id="hull-meter"></i></div></div>
+        <div class="system-meter"><div class="system-label"><span>FUEL</span><b id="fuel-value">100%</b></div><div class="meter"><i id="fuel-meter"></i></div></div>
+        <div class="system-meter"><div class="system-label"><span>BILGE WATER</span><b id="water-value">0%</b></div><div class="meter water-meter"><i id="water-meter"></i></div></div>
+        <div class="status-note" id="system-note">All systems nominal</div>
+      </section>
+
+      <div class="stations">
+        <section class="station fisher-station" data-station="fisher">
+          <header class="station-header"><div class="station-title"><span class="station-icon">⌁</span><div><p class="eyebrow">UPPER DECK</p><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
+          <div class="ocean-scene">
+            <img id="fish-image" alt="" hidden>
+            <div class="ocean-silhouette" aria-hidden="true"><span>◉</span></div>
+            <div class="ocean-copy"><span class="eyebrow" id="encounter-rarity">SCANNING THE DEEP</span><h4 id="encounter-title">The water is quiet</h4><p id="encounter-copy">A new catch could appear at any moment.</p></div>
+          </div>
+          <div class="fishing-controls">
+            <div class="challenge-copy"><b id="fishing-task-title">Standing by</b><span id="fishing-task-help">Watch for a bite and follow the on-screen challenge.</span></div>
+            <div class="challenge-actions" id="fishing-actions"><button class="action-button" disabled>Waiting for a bite</button></div>
+          </div>
+          <div class="upgrade-summary" id="fisher-upgrade-summary">Harpoon power I <span>Reel-in bonus active</span></div>
+        </section>
+
+        <section class="station engineer-station" data-station="engineer">
+          <header class="station-header"><div class="station-title"><span class="station-icon">✳</span><div><p class="eyebrow">INSIDE THE SUB</p><h3>Engineer board</h3></div></div><span class="station-owner" id="engineer-owner">ENGINEER</span></header>
+          <div class="room-nav" id="room-nav" aria-label="Submarine rooms"></div>
+          <div class="mission-list" id="mission-list"></div>
+          <div class="repair-panel hidden" id="repair-panel">
+            <div class="repair-heading"><div><p class="eyebrow" id="repair-room-label">ROOM</p><h4 id="repair-title">Repair mission</h4></div><button class="icon-button" id="close-repair" aria-label="Close repair mission">×</button></div>
+            <p class="repair-instructions" id="repair-instructions"></p>
+            <div class="repair-challenge" id="repair-challenge"></div>
+          </div>
+          <div class="upgrade-summary" id="engineer-upgrade-summary">Reinforced hull I <span>Reduces incoming damage</span></div>
+        </section>
+      </div>
+
+      <section class="bottom-bar">
+        <div class="crew-note"><span class="crew-dot"></span><span id="crew-message">A good crew keeps talking.</span></div>
+        <button class="shop-button hidden" id="shop-button"><span>⚓</span> Checkpoint shop <span aria-hidden="true">→</span></button>
+        <button class="quiet-button practice-role hidden" id="switch-role">Switch practice role</button>
+      </section>
+      <section class="shop-panel hidden" id="shop-panel">
+        <div class="shop-heading"><div><p class="eyebrow">SAFE WATER · CHECKPOINT</p><h3>Trade & refit</h3></div><button class="icon-button" id="close-shop" aria-label="Close shop">×</button></div>
+        <p id="inventory-copy">Sell your haul and invest in upgrades for the crew.</p>
+        <div class="shop-actions"><button class="secondary-button" id="sell-button">Sell all fish <span id="inventory-value">+0 ◈</span></button><div class="upgrade-list" id="upgrade-list"></div></div>
+      </section>
+      <section class="game-over hidden" id="game-over">
+        <div><p class="eyebrow">EXPEDITION ENDED</p><b>The hull couldn't take any more.</b><span>Start a new voyage to give it another go.</span></div>
+        <button class="secondary-button" id="restart-button">Start new voyage <span aria-hidden="true">→</span></button>
+      </section>
+      <footer class="game-footer"><span id="net-status">Connecting crew…</span><span>Fisher: WASD / arrows + Space · Engineer: arrow keys, mouse & clicks</span></footer>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
