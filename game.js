@@ -36,6 +36,7 @@
   ];
   const arrowKeys = ["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"];
   const arrowGlyph = { ArrowUp: "↑", ArrowRight: "→", ArrowDown: "↓", ArrowLeft: "←" };
+  const wasdKeys = { w: "ArrowUp", d: "ArrowRight", s: "ArrowDown", a: "ArrowLeft" };
   const weldPath = [[0, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [1, .5]];
   const boltSpots = [[.1, .18], [.32, .22], [.57, .15], [.84, .22], [.18, .72], [.43, .82], [.68, .68], [.89, .78], [.5, .47], [.27, .48]];
   const upgrades = {
@@ -57,7 +58,7 @@
     roomCode: $("#room-code"),
     joinForm: $("#join-form"),
     joinCode: $("#join-code"),
-    practiceButton: $("#practice-button"),
+    localButton: $("#practice-button"),
     copyCode: $("#copy-code"),
     roleBadge: $("#role-badge"),
     leaveButton: $("#leave-button"),
@@ -103,7 +104,6 @@
     inventoryCopy: $("#inventory-copy"),
     upgradeList: $("#upgrade-list"),
     netStatus: $("#net-status"),
-    switchRole: $("#switch-role"),
     toast: $("#toast")
   };
 
@@ -141,6 +141,14 @@
       fishSpawnIn: 8,
       ended: false
     };
+  }
+
+  function canFisherAct() {
+    return mode === "local" || localRole === "fisher";
+  }
+
+  function canEngineerAct() {
+    return mode === "local" || localRole === "engineer";
   }
 
   function showMessage(message, isError = false) {
@@ -197,8 +205,7 @@
 
   function resetRepairPanel() {
     selectedIssueId = null;
-    repairSignature = "";
-    el.repairPanel.classList.add("hidden");
+    el.repairPanel.classList.remove("hidden");
     el.missionList.classList.remove("hidden");
   }
 
@@ -229,12 +236,12 @@
     el.game.classList.remove("hidden");
     $(".shell").classList.add("in-game");
     el.roleBadge.textContent = role.toUpperCase();
-    el.switchRole.classList.toggle("hidden", mode !== "practice");
-    el.netStatus.textContent = mode === "practice" ? "Solo practice · both stations available" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
+    el.netStatus.textContent = mode === "local" ? "Local co-op · Fisher WASD + Space · Repairer arrows + mouse" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
     if (mode === "client") setConnectionLabel("Crew connected", true);
     selectedIssueId = null;
     repairSignature = "";
-    if (mode === "host" || mode === "practice") startHostTimer();
+    if (mode === "local" && gameState.issues.length === 0) makeIssue();
+    if (mode === "host" || mode === "local") startHostTimer();
     render();
   }
 
@@ -371,7 +378,7 @@
 
   function receiveMessage(message, senderRole) {
     if (!message || typeof message !== "object") return;
-    if (message.type === "action" && (mode === "host" || mode === "practice")) {
+    if (message.type === "action" && (mode === "host" || mode === "local")) {
       applyAction(message.action, message.data || {}, senderRole);
     } else if (message.type === "state" && mode !== "host" && message.state && typeof message.state === "object") {
       clearConnectionTimer();
@@ -402,9 +409,9 @@
     toast(message, warning);
   }
 
-  function sendAction(action, data = {}) {
-    if (mode === "practice" || mode === "host") {
-      applyAction(action, data, localRole);
+  function sendAction(action, data = {}, role = localRole) {
+    if (mode === "local" || mode === "host") {
+      applyAction(action, data, role);
     } else if (mode === "client" && connection && connection.open) {
       broadcast({ type: "action", action, data });
     }
@@ -723,6 +730,18 @@
     return button;
   }
 
+  function makeSequencePreview(values, glyph = (value) => String(value + 1)) {
+    const preview = document.createElement("div");
+    preview.className = "sequence-preview";
+    values.forEach((value, index) => {
+      const light = document.createElement("span");
+      light.textContent = glyph(value);
+      light.style.animationDelay = `${index * .34}s`;
+      preview.append(light);
+    });
+    return preview;
+  }
+
   function randomBoltPositions() {
     const positions = [...boltSpots];
     for (let index = positions.length - 1; index > 0; index--) {
@@ -765,19 +784,21 @@
 
     if (fish.stage === "bite") {
       el.fishingTaskTitle.textContent = "A bite!";
-      el.fishingTaskHelp.textContent = "Cast your harpoon before the fish gets away.";
-      const button = makeButton("Cast harpoon", {}, "action-button");
+      el.fishingTaskHelp.textContent = mode === "local" ? "Fisher: press Space or cast before the fish gets away." : "Cast your harpoon before the fish gets away.";
+      const button = makeButton(mode === "local" ? "CAST  ·  SPACE" : "Cast harpoon", {}, "action-button");
       button.dataset.fishing = "cast";
       const harpoonOffline = gameState.issues.some((issue) => issue.type === "harpoon");
       if (harpoonOffline) button.textContent = "Harpoon offline";
-      button.disabled = localRole !== "fisher" || harpoonOffline || gameState.ended;
+      button.disabled = !canFisherAct() || harpoonOffline || gameState.ended;
       el.fishingActions.append(button);
       return;
     }
 
     if (fish.type === "aim") {
       el.fishingTaskTitle.textContent = "Keep the aim steady";
-      el.fishingTaskHelp.textContent = "Move the dot into the drifting ring and hold it there. Use mouse or WASD / arrows.";
+      el.fishingTaskHelp.textContent = mode === "local"
+        ? "Fisher: use WASD to keep the dot inside the drifting ring."
+        : "Move the dot into the drifting ring and hold it there. Use mouse or WASD / arrows.";
       target.classList.remove("hidden");
       dot.classList.remove("hidden");
       target.style.left = `${fish.target.x * 100}%`;
@@ -787,7 +808,9 @@
       el.fishingActions.innerHTML = progressMarkup(fish.progress, fish.needed);
     } else if (fish.type === "rhythm") {
       el.fishingTaskTitle.textContent = "Match the rhythm";
-      el.fishingTaskHelp.textContent = "Press the arrows in sequence before the line goes slack.";
+      el.fishingTaskHelp.textContent = mode === "local"
+        ? "Fisher: tap W, D, S, A to match the sequence before the line goes slack."
+        : "Press the arrows in sequence before the line goes slack.";
       const keys = document.createElement("div");
       keys.className = "rhythm-keys";
       fish.sequence.forEach((key, index) => {
@@ -795,7 +818,7 @@
         span.className = `rhythm-key${index < fish.seqIndex ? " hit" : ""}${index === fish.seqIndex ? " next" : ""}`;
         span.textContent = arrowGlyph[key];
         span.setAttribute("role", "button");
-        span.tabIndex = localRole === "fisher" ? 0 : -1;
+        span.tabIndex = canFisherAct() ? 0 : -1;
         span.dataset.fishing = "rhythm";
         span.dataset.key = key;
         keys.append(span);
@@ -806,7 +829,7 @@
       el.fishingTaskHelp.textContent = "Tap fast or press Space to keep the fish on the line.";
       const button = makeButton("REEL  ·  SPACE", {}, "action-button");
       button.dataset.fishing = "reel";
-      button.disabled = localRole !== "fisher" || gameState.ended;
+      button.disabled = !canFisherAct() || gameState.ended;
       el.fishingActions.append(button, document.createRange().createContextualFragment(progressMarkup(fish.progress, fish.needed)));
     }
   }
@@ -844,7 +867,7 @@
       desc.textContent = issueInfo[issue.type].description;
       details.append(location, name, desc);
       const open = makeButton("Repair", { issue: issue.id }, "action-button");
-      open.disabled = localRole !== "engineer" || gameState.ended;
+      open.disabled = !canEngineerAct() || gameState.ended;
       row.append(details, open);
       if (issue.expired) {
         const label = document.createElement("span");
@@ -862,6 +885,26 @@
     const issue = selectedIssueId && issueById(selectedIssueId);
     if (!issue) {
       resetRepairPanel();
+      el.repairRoomLabel.textContent = gameState.issues.length ? "REPAIR DESK" : "STANDBY";
+      el.repairTitle.textContent = gameState.issues.length ? "Choose a system fault" : "All systems quiet";
+      el.repairInstructions.textContent = gameState.issues.length
+        ? "Select any active call to open its repair challenge. Keep an eye on the countdown."
+        : "The repair station is ready. New faults will appear as the submarine descends.";
+      const signature = `standby:${gameState.issues.length ? "active" : "clear"}`;
+      if (repairSignature !== signature) {
+        repairSignature = signature;
+        const status = document.createElement("div");
+        status.className = "repair-standby";
+        const icon = document.createElement("span");
+        icon.className = "repair-standby-icon";
+        icon.textContent = gameState.issues.length ? "!" : "✓";
+        const message = document.createElement("b");
+        message.textContent = gameState.issues.length ? "Repair desk ready" : "No repairs needed";
+        const help = document.createElement("span");
+        help.textContent = gameState.issues.length ? "Pick a highlighted call from the board." : "Stay alert for the next system fault.";
+        status.append(icon, message, help);
+        el.repairChallenge.replaceChildren(status);
+      }
       return;
     }
     el.repairPanel.classList.remove("hidden");
@@ -873,17 +916,19 @@
       repairSignature = signature;
       el.repairChallenge.replaceChildren();
       if (issue.type === "sequence") {
-        const preview = document.createElement("div");
-        preview.className = "sequence-preview";
-        preview.textContent = issue.pattern.map((index) => index + 1).join("  ·  ");
+        const preview = makeSequencePreview(issue.pattern);
         el.repairChallenge.append(preview);
         const grid = document.createElement("div");
         grid.className = "sequence-grid";
-        for (let index = 0; index < 9; index++) grid.append(makeButton(String(index + 1), { repair: "sequence", index }));
+        for (let index = 0; index < 9; index++) {
+          const tile = makeButton(String(index + 1), { repair: "sequence", index });
+          tile.setAttribute("aria-label", `Signal tile ${index + 1}`);
+          grid.append(tile);
+        }
         el.repairChallenge.append(grid);
         setTimeout(() => {
           if (preview.isConnected) preview.classList.add("concealed");
-        }, 2400);
+        }, Math.max(2400, issue.pattern.length * 340 + 650));
       } else if (issue.type === "alignment") {
         const controls = document.createElement("div");
         controls.className = "alignment-console";
@@ -897,7 +942,9 @@
         const level = document.createElement("span");
         level.className = "alignment-level";
         level.textContent = "LEVEL";
-        dial.append(submarine, level);
+        const reading = document.createElement("span");
+        reading.className = "alignment-reading";
+        dial.append(submarine, level, reading);
         const left = makeButton("↶", { repair: "align", direction: "-1" }, "alignment-button");
         left.setAttribute("aria-label", "Trim left");
         const right = makeButton("↷", { repair: "align", direction: "1" }, "alignment-button");
@@ -905,16 +952,16 @@
         controls.append(left, dial, right);
         el.repairChallenge.append(controls);
       } else if (issue.type === "engine") {
-        const preview = document.createElement("div");
-        preview.className = "sequence-preview";
-        preview.textContent = issue.pattern.map((key) => arrowGlyph[key]).join("  ·  ");
+        const preview = makeSequencePreview(issue.pattern, (key) => arrowGlyph[key]);
         el.repairChallenge.append(preview);
         const buttons = document.createElement("div");
         buttons.className = "sequence-grid arrow-grid";
         arrowKeys.forEach((key) => buttons.append(makeButton(arrowGlyph[key], { repair: "engine", key })));
         el.repairChallenge.append(buttons);
       } else if (issue.type === "valve") {
-        const valve = makeButton("↻  TURN VALVE", { repair: "turn" }, "mini-button valve-button");
+        const valve = makeButton("", { repair: "turn" }, "mini-button valve-button");
+        valve.setAttribute("aria-label", "Turn the valve");
+        valve.innerHTML = '<span class="valve-wheel" aria-hidden="true">✣</span><span>TURN VALVE</span>';
         el.repairChallenge.append(valve);
       } else if (issue.type === "weld") {
         const track = document.createElement("div");
@@ -980,6 +1027,10 @@
     }
     const submarine = el.repairChallenge.querySelector(".alignment-sub");
     if (submarine) submarine.style.transform = `rotate(${issue.angle}deg)`;
+    const alignmentReading = el.repairChallenge.querySelector(".alignment-reading");
+    if (alignmentReading) alignmentReading.textContent = `${Math.round(issue.angle)}°`;
+    const valveWheel = el.repairChallenge.querySelector(".valve-wheel");
+    if (valveWheel) valveWheel.style.transform = `rotate(${issue.progress * 45}deg)`;
     const pumpFill = el.repairChallenge.querySelector(".pump-gauge i");
     if (pumpFill) pumpFill.style.width = `${Math.min(100, issue.progress / 9 * 100)}%`;
     const pumpReading = el.repairChallenge.querySelector(".pump-reading");
@@ -987,10 +1038,17 @@
     el.repairChallenge.querySelectorAll("[data-repair='bolt']").forEach((button) => {
       const complete = issue.bolts.includes(Number(button.dataset.index));
       button.classList.toggle("done", complete);
-      button.disabled = complete || localRole !== "engineer" || gameState.ended;
+      button.disabled = complete || !canEngineerAct() || gameState.ended;
     });
     el.repairChallenge.querySelectorAll("button[data-repair]").forEach((button) => {
-      if (!button.hasAttribute("data-index") || issue.type !== "bolts") button.disabled = localRole !== "engineer" || gameState.ended;
+      if (issue.type === "harpoon") {
+        const step = Number(button.dataset.step);
+        button.classList.toggle("done", step < issue.step);
+        button.classList.toggle("active", step === issue.step);
+        button.disabled = step !== issue.step || !canEngineerAct() || gameState.ended;
+      } else if (issue.type !== "bolts") {
+        button.disabled = !canEngineerAct() || gameState.ended;
+      }
     });
     const weldDot = el.repairChallenge.querySelector(".weld-dot");
     if (weldDot) {
@@ -1010,7 +1068,7 @@
     if (!open) delete el.shopPanel.dataset.open;
     const total = gameState.inventory.reduce((sum, fish) => sum + fish.value, 0);
     el.inventoryValue.textContent = `+${total} ◈`;
-    el.sellButton.disabled = !open || total === 0 || localRole !== "engineer" || gameState.ended;
+    el.sellButton.disabled = !open || total === 0 || !canEngineerAct() || gameState.ended;
     const species = [...new Set(gameState.inventory.map((fish) => fish.species).filter(Boolean))];
     el.inventoryCopy.textContent = gameState.inventory.length
       ? `${gameState.inventory.length} fish in the hold${species.length ? ` · ${species.join(", ")}` : ""}. Sell the haul to fund crew upgrades.`
@@ -1024,7 +1082,7 @@
       const description = document.createElement("small");
       description.textContent = item.description;
       const buy = makeButton(`Buy · ${upgradeCost(key)} ◈`, { upgrade: key }, "");
-      buy.disabled = !open || gameState.gold < upgradeCost(key) || localRole !== "engineer" || gameState.ended;
+      buy.disabled = !open || gameState.gold < upgradeCost(key) || !canEngineerAct() || gameState.ended;
       card.append(name, description, buy);
       el.upgradeList.append(card);
     }
@@ -1032,9 +1090,9 @@
 
   function render() {
     if (!gameState) return;
-    el.roleBadge.textContent = localRole.toUpperCase();
-    el.fisherOwner.textContent = mode === "practice" ? "PRACTICE" : mode === "host" ? "YOU" : "CREWMATE";
-    el.engineerOwner.textContent = mode === "practice" ? "PRACTICE" : mode === "host" ? (connection ? "CREWMATE" : "WAITING") : "YOU";
+    el.roleBadge.textContent = mode === "local" ? "LOCAL CREW" : localRole.toUpperCase();
+    el.fisherOwner.textContent = mode === "local" ? "LOCAL PLAYER 1" : mode === "host" ? "YOU" : "CREWMATE";
+    el.engineerOwner.textContent = mode === "local" ? "LOCAL PLAYER 2" : mode === "host" ? (connection ? "CREWMATE" : "WAITING") : "YOU";
     el.depth.textContent = Math.floor(gameState.depth);
     el.gold.textContent = Math.floor(gameState.gold);
     el.caughtCount.textContent = gameState.caught;
@@ -1051,15 +1109,14 @@
     el.systemNote.textContent = gameState.ended ? "HULL BREACHED · VOYAGE OVER" : gameState.issues.some((issue) => issue.type === "valve") ? "Gas leak · valve repair needed" : gameState.issues.some((issue) => issue.type === "harpoon") ? "Harpoon offline" : gameState.water > 55 ? "Bilge water rising" : gameState.issues.length ? `${gameState.issues.length} system issue${gameState.issues.length === 1 ? "" : "s"} active` : "All systems nominal";
     const assets = window.CCM_ASSETS || {};
     setImage(el.subImage, el.subFallback, assets.submarine);
-    el.switchRole.textContent = `Switch to ${localRole === "fisher" ? "engineer" : "fisher"} practice role`;
     el.crewMessage.textContent = gameState.ended ? "Hull breached. Start a new voyage to play again." : gameState.issues.length ? `${gameState.issues.length} issue${gameState.issues.length === 1 ? "" : "s"} need attention` : gameState.encounter ? "A catch is on the line — work together!" : gameState.checkpointOpen ? "Checkpoint reached — sell and upgrade before the next leg." : "A good crew keeps talking.";
     $("#game-over").classList.toggle("hidden", !gameState.ended);
     renderFishing();
     renderRooms();
     renderRepair();
     renderShop();
-    document.querySelector(".fisher-station").classList.toggle("station-inactive", localRole !== "fisher" && mode !== "practice");
-    document.querySelector(".engineer-station").classList.toggle("station-inactive", localRole !== "engineer" && mode !== "practice");
+    document.querySelector(".fisher-station").classList.toggle("station-inactive", localRole !== "fisher" && mode !== "local");
+    document.querySelector(".engineer-station").classList.toggle("station-inactive", localRole !== "engineer" && mode !== "local");
     el.fisherUpgradeSummary.textContent = `Harpoon winch ${roman(gameState.upgrades.harpoon + 1)}`;
     const fisherSub = document.createElement("span");
     fisherSub.textContent = "Reel-in bonus active";
@@ -1077,15 +1134,15 @@
 
   function handleFishingClick(event) {
     const button = event.target.closest("[data-fishing]");
-    if (!button || localRole !== "fisher" || gameState.ended) return;
-    if (button.dataset.fishing === "cast") sendAction("cast");
-    if (button.dataset.fishing === "reel") sendAction("reel");
-    if (button.dataset.fishing === "rhythm") sendAction("rhythm", { key: button.dataset.key });
+    if (!button || !canFisherAct() || gameState.ended) return;
+    if (button.dataset.fishing === "cast") sendAction("cast", {}, "fisher");
+    if (button.dataset.fishing === "reel") sendAction("reel", {}, "fisher");
+    if (button.dataset.fishing === "rhythm") sendAction("rhythm", { key: button.dataset.key }, "fisher");
   }
 
   function handleRepairClick(event) {
     const button = event.target.closest("[data-repair]");
-    if (!button || localRole !== "engineer" || !selectedIssueId) return;
+    if (!button || !canEngineerAct() || !selectedIssueId) return;
     const issue = issueById(selectedIssueId);
     if (!issue) return;
     const modeName = button.dataset.repair;
@@ -1094,50 +1151,54 @@
     if (modeName === "engine") data.key = button.dataset.key;
     if (modeName === "align") data.direction = Number(button.dataset.direction);
     if (modeName === "harpoon") data.step = Number(button.dataset.step);
-    sendAction("repair", data);
+    sendAction("repair", data, "engineer");
   }
 
   function handleKeyboard(event) {
     if (mode === "lobby" || gameState.ended || event.altKey || event.ctrlKey || event.metaKey) return;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) event.preventDefault();
-    if (localRole === "fisher" && gameState.encounter && gameState.encounter.stage === "hooked") {
+    if (canFisherAct() && gameState.encounter) {
       const fish = gameState.encounter;
-      if (fish.type === "rhythm" && arrowKeys.includes(event.key) && !event.repeat) sendAction("rhythm", { key: event.key });
-      if (fish.type === "aim") {
-        const move = {
+      if (fish.stage === "bite" && event.code === "Space" && !event.repeat) {
+        sendAction("cast", {}, "fisher");
+      } else if (fish.stage === "hooked" && fish.type === "rhythm" && !event.repeat) {
+        const rhythmKey = wasdKeys[event.key.toLowerCase()] || (mode !== "local" && arrowKeys.includes(event.key) ? event.key : null);
+        if (rhythmKey) sendAction("rhythm", { key: rhythmKey }, "fisher");
+      }
+      if (fish.stage === "hooked" && fish.type === "aim") {
+        const aimMoves = {
           ArrowUp: [0, -.08], w: [0, -.08], ArrowDown: [0, .08], s: [0, .08],
           ArrowLeft: [-.08, 0], a: [-.08, 0], ArrowRight: [.08, 0], d: [.08, 0]
-        }[event.key];
-        if (move) sendAction("aimMove", { dx: move[0], dy: move[1] });
+        };
+        const move = mode === "local" ? aimMoves[event.key.toLowerCase()] : aimMoves[event.key] || aimMoves[event.key.toLowerCase()];
+        if (move) sendAction("aimMove", { dx: move[0], dy: move[1] }, "fisher");
       }
-      if (fish.type === "reel" && event.code === "Space" && Date.now() - lastReelSent > 95) {
+      if (fish.stage === "hooked" && fish.type === "reel" && event.code === "Space" && Date.now() - lastReelSent > 95) {
         lastReelSent = Date.now();
-        sendAction("reel");
+        sendAction("reel", {}, "fisher");
       }
     }
-    if (localRole === "engineer" && selectedIssueId && !event.repeat) {
+    if (canEngineerAct() && selectedIssueId && !event.repeat) {
       const issue = issueById(selectedIssueId);
       if (issue && issue.type === "alignment" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-        sendAction("repair", { id: issue.id, room: issue.room, mode: "align", direction: event.key === "ArrowRight" ? 1 : -1 });
+        sendAction("repair", { id: issue.id, room: issue.room, mode: "align", direction: event.key === "ArrowRight" ? 1 : -1 }, "engineer");
       } else if (issue && issue.type === "engine" && arrowKeys.includes(event.key)) {
-        sendAction("repair", { id: issue.id, room: issue.room, mode: "engine", key: event.key });
-      } else if (issue && (issue.type === "fuel" || issue.type === "water") && event.code === "Space") {
-        sendAction("repair", { id: issue.id, room: issue.room, mode: "pump" });
+        sendAction("repair", { id: issue.id, room: issue.room, mode: "engine", key: event.key }, "engineer");
       }
     }
   }
 
   function handleOceanPointer(event) {
-    if (localRole !== "fisher" || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
+    if (mode === "local" || !canFisherAct() || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
     if (Date.now() - lastAimSent < 60) return;
     lastAimSent = Date.now();
     const rect = el.oceanScene.getBoundingClientRect();
-    sendAction("aimPosition", { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height });
+    sendAction("aimPosition", { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }, "fisher");
   }
 
   function handleWeldPointerMove(event) {
     const track = event.target.closest(".weld-track");
-    if (!track || !weldPointerDown || localRole !== "engineer" || !selectedIssueId) return;
+    if (!track || !weldPointerDown || !canEngineerAct() || !selectedIssueId) return;
     const rect = track.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
@@ -1157,7 +1218,7 @@
       if (distance < nearest.distance) nearest = { progress: (index + projection) / (weldPath.length - 1), distance };
     }
     if (nearest.distance <= 24 && nearest.progress > issue.progress + .012 && nearest.progress <= issue.progress + .08) {
-      sendAction("repair", { id: issue.id, room: issue.room, mode: "weld", value: nearest.progress });
+      sendAction("repair", { id: issue.id, room: issue.room, mode: "weld", value: nearest.progress }, "engineer");
     }
   }
 
@@ -1179,18 +1240,13 @@
         showMessage("Copy was blocked by the browser. Select the room code and copy it manually.", true);
       }
     });
-    el.practiceButton.addEventListener("click", () => enterGame("practice", "fisher", initialState()));
+    el.localButton.addEventListener("click", () => enterGame("local", "fisher", initialState()));
     el.leaveButton.addEventListener("click", returnToLobby);
     $("#restart-button").addEventListener("click", () => sendAction("restart"));
-    el.switchRole.addEventListener("click", () => {
-      if (mode !== "practice") return;
-      localRole = localRole === "fisher" ? "engineer" : "fisher";
-      render();
-    });
     el.fishingActions.addEventListener("click", handleFishingClick);
     el.missionList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-issue]");
-      if (!button || localRole !== "engineer") return;
+      if (!button || !canEngineerAct()) return;
       selectedIssueId = button.dataset.issue;
       repairSignature = "";
       render();
@@ -1207,7 +1263,10 @@
     el.repairChallenge.addEventListener("pointermove", handleWeldPointerMove);
     el.repairChallenge.addEventListener("pointerup", () => { weldPointerDown = false; });
     el.repairChallenge.addEventListener("pointercancel", () => { weldPointerDown = false; });
-    el.closeRepair.addEventListener("click", resetRepairPanel);
+    el.closeRepair.addEventListener("click", () => {
+      resetRepairPanel();
+      render();
+    });
     el.oceanScene.addEventListener("pointermove", handleOceanPointer);
     el.shopButton.addEventListener("click", () => {
       el.shopPanel.dataset.open = "true";
@@ -1216,12 +1275,12 @@
     });
     el.closeShop.addEventListener("click", () => {
       el.shopPanel.classList.remove("hidden");
-      sendAction("checkpointContinue");
+      sendAction("checkpointContinue", {}, "engineer");
     });
-    el.sellButton.addEventListener("click", () => sendAction("sell"));
+    el.sellButton.addEventListener("click", () => sendAction("sell", {}, "engineer"));
     el.upgradeList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-upgrade]");
-      if (button && localRole === "engineer") sendAction("upgrade", { key: button.dataset.upgrade });
+      if (button && canEngineerAct()) sendAction("upgrade", { key: button.dataset.upgrade }, "engineer");
     });
     window.addEventListener("keydown", handleKeyboard);
   }

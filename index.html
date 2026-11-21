@@ -43,7 +43,7 @@
           <label class="field-label" for="join-code">ROOM CODE</label>
           <div class="join-row"><input id="join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Room code"><button class="secondary-button" type="submit">Join <span aria-hidden="true">→</span></button></div>
         </form>
-        <button class="practice-link" id="practice-button"><span><b>Play locally</b><small>Solo voyage · switch between both crew roles</small></span><span aria-hidden="true">→</span></button>
+        <button class="practice-link" id="practice-button"><span><b>Play local co-op</b><small>Fisher: WASD + Space · Repairer: arrows + mouse</small></span><span aria-hidden="true">→</span></button>
         <p class="connection-message" id="connection-message" role="status"></p>
       </div>
       <div class="lobby-footer"><span>BUILT FOR TWO, BEST PLAYED WITH A FRIEND</span><span>ONLINE CO-OP · NO ACCOUNT NEEDED</span></div>
@@ -52,7 +52,7 @@
     <section class="game hidden" id="game">
       <div class="game-heading">
         <div><h2>Pelagic Passage</h2></div>
-        <div class="game-heading-right"><span class="role-badge" id="role-badge">FISHER</span><button class="quiet-button" id="leave-button">Leave voyage</button></div>
+        <div class="game-heading-right"><span class="role-badge" id="role-badge">LOCAL CREW</span><button class="quiet-button" id="leave-button">Leave voyage</button></div>
       </div>
 
       <section class="voyage-strip" aria-label="Voyage status">
@@ -103,7 +103,6 @@
         <div class="crew-note"><span class="crew-dot"></span><span id="crew-message">A good crew keeps talking.</span></div>
         <span class="network-note" id="net-status">Connecting crew…</span>
         <button class="shop-button hidden" id="shop-button"><span>⚓</span> Checkpoint shop <span aria-hidden="true">→</span></button>
-        <button class="quiet-button practice-role hidden" id="switch-role">Switch practice role</button>
       </section>
       <section class="shop-panel hidden" id="shop-panel">
         <div class="shop-heading"><div><p class="eyebrow">SAFE WATER · CHECKPOINT</p><h3>Trade & refit</h3></div><button class="icon-button" id="close-shop" aria-label="Close shop">×</button></div>

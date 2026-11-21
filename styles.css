@@ -144,7 +144,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .rhythm-keys { display: flex; gap: 4px; }
 .rhythm-key { width: 31px; height: 35px; display: grid; place-items: center; color: #d3e6e5; border: 1px solid #527988; border-radius: 6px; background: linear-gradient(145deg, #1a465a, #102e40); cursor: pointer; font-size: 17px; font-weight: 800; box-shadow: 0 2px 6px #04151c; }
 .rhythm-key.hit { color: #13332f; border-color: var(--lime); background: var(--lime); }
-.rhythm-key.next { color: #072a30; border-color: var(--cyan); background: var(--cyan); }
+.rhythm-key.next { color: #072a30; border-color: var(--cyan); background: var(--cyan); animation: rhythm-pulse .7s ease-in-out infinite alternate; }
+@keyframes rhythm-pulse { to { box-shadow: 0 0 13px rgba(108, 225, 212, .75); transform: translateY(-2px); } }
 .aim-target, .aim-dot { z-index: 4; position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
 .aim-target { width: 50px; height: 50px; border: 2px solid var(--lime); border-radius: 50%; box-shadow: 0 0 14px rgba(211, 239, 155, .45), inset 0 0 10px rgba(211, 239, 155, .2); }
 .aim-target::before, .aim-target::after { position: absolute; background: var(--lime); content: ''; }
@@ -177,6 +178,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .icon-button { font-size: 19px; line-height: 1; }
 .repair-instructions { margin: 8px 0; color: #9eb4b9; font-size: 10px; line-height: 1.45; }
 .repair-challenge { min-height: 105px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; }
+.repair-standby { min-height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--muted); text-align: center; font-size: 10px; }
+.repair-standby b { color: var(--ink); font-size: 11px; }
+.repair-standby-icon { width: 27px; height: 27px; display: grid; place-items: center; color: var(--lime); border: 1px solid #47777b; border-radius: 50%; background: #153b43; font-size: 14px; }
 .mini-button { min-width: 34px; min-height: 33px; padding: 7px; color: var(--ink); border: 1px solid #355b69; background: #15394b; cursor: pointer; font-size: 11px; }
 .mini-button:hover { border-color: var(--cyan); }
 .mini-button.done { color: #102b30; border-color: var(--lime); background: var(--lime); }
@@ -192,6 +196,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .alignment-sub svg { width: 100%; height: 100%; overflow: visible; fill: #b7dad5; stroke: #b7dad5; stroke-width: 1.5; filter: drop-shadow(0 3px 4px #04131b); }
 .alignment-sub svg circle { fill: #183c48; stroke: #a7d8d1; }
 .alignment-level { position: absolute; bottom: 5px; color: var(--lime); font: 8px 'DM Mono', monospace; letter-spacing: .12em; }
+.alignment-reading { position: absolute; top: 8px; right: 12px; color: var(--amber); font: 9px 'DM Mono', monospace; }
 .weld-track { position: relative; width: 100%; height: 115px; overflow: hidden; touch-action: none; border: 1px solid #35576a; border-radius: 8px; background: radial-gradient(ellipse at center, #183d4e, #0a2637); cursor: crosshair; }
 .weld-track svg { position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px); overflow: visible; pointer-events: none; }
 .weld-track polyline { fill: none; stroke: #f0bd63; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; opacity: .8; filter: drop-shadow(0 0 5px #f0a648); }
@@ -215,7 +220,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .crew-note { font-size: 10px; }
 .network-note { color: var(--faint); font: 9px 'DM Mono', monospace; }
 .shop-button { padding: 11px 14px; color: #07262b; background: var(--lime); font-size: 10px; font-weight: 700; }
-.practice-role { margin-left: auto; }
 .shop-panel { padding: 17px; border: 1px solid #547461; background: linear-gradient(135deg, #162f38, #12293a); }
 .shop-heading { display: flex; justify-content: space-between; align-items: center; }
 .shop-heading .eyebrow { margin-bottom: 4px; }
@@ -234,14 +238,20 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .game-over b, .game-over span { display: block; }
 .game-over b { font: 600 14px Manrope, sans-serif; }
 .game-over span { margin-top: 4px; color: #b7c5c6; font-size: 10px; }
-.sequence-preview { width: 100%; color: var(--amber); text-align: center; font: 500 12px 'DM Mono', monospace; letter-spacing: .14em; }
+.sequence-preview { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--amber); text-align: center; font: 500 12px 'DM Mono', monospace; letter-spacing: .14em; }
+.sequence-preview span { min-width: 24px; padding: 3px 5px; border: 1px solid #415d67; border-radius: 5px; background: #102d3c; animation: sequence-light .42s ease-in-out both; }
+@keyframes sequence-light { 0%, 100% { color: var(--muted); border-color: #415d67; background: #102d3c; box-shadow: none; } 45% { color: #092d32; border-color: var(--lime); background: var(--lime); box-shadow: 0 0 14px rgba(211, 239, 155, .8); } }
 .sequence-preview.concealed { color: var(--faint); filter: blur(5px); }
 .sequence-grid { display: grid; grid-template-columns: repeat(3, 32px); gap: 4px; }
 .arrow-grid { grid-template-columns: repeat(4, 48px); gap: 7px; }
 .arrow-grid .mini-button { min-height: 48px; color: #e5f7f5; border-color: #5b8594; border-radius: 8px; background: linear-gradient(145deg, #20546a, #12384d); font-size: 22px; font-weight: 800; box-shadow: 0 3px 8px #04151c; }
 .arrow-grid .mini-button:hover { color: var(--lime); border-color: var(--lime); }
+.mini-button.active { color: #092d32; border-color: var(--lime); background: var(--lime); box-shadow: 0 0 14px rgba(211, 239, 155, .35); }
 .compass-mark { min-width: 28px; color: var(--amber); text-align: center; font-size: 18px; }
 .valve-button, .pump-button { min-width: 120px; }
+.valve-button { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--ink); border-color: #7d7655; border-radius: 9px; background: linear-gradient(145deg, #564e37, #302f2b); font-size: 10px; font-weight: 700; }
+.valve-wheel { width: 32px; height: 32px; display: grid; place-items: center; color: #ffce7b; border: 2px solid #bf9a5d; border-radius: 50%; background: radial-gradient(circle, #263d43 38%, #746043 41% 47%, #283b41 50%); font-size: 22px; transition: transform .18s ease-out; }
+.valve-button:hover { border-color: var(--amber); }
 .repair-progress { width: 100%; }
 .repair-progress i { background: var(--amber); }
 .weld-track { cursor: crosshair; }

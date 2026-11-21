@@ -4,12 +4,14 @@ A browser-based, online co-op game for two. The Fisher hooks and reels in strang
 
 ## Play
 
-Open `index.html` from a static web host, such as GitHub Pages, and make sure both players use the same hosted page. The Fisher selects **Make a room** and shares the six-character code; the other player enters it under **Join a room**. The Fisher hosts the game and the joining player is the Engineer. An internet connection is required for PeerJS room signaling and the peer-to-peer connection. If joining does not finish, the game now reports a timeout or connection error so the crew can check the code, host room, and network. **Play locally** starts a solo voyage and lets one player switch between both roles without an online room.
+Open `index.html` from a static web host, such as GitHub Pages, and make sure both players use the same hosted page. The Fisher selects **Make a room** and shares the six-character code; the other player enters it under **Join a room**. The Fisher hosts the game and the joining player is the Engineer. An internet connection is required for PeerJS room signaling and the peer-to-peer connection. If joining does not finish, the game reports a timeout or connection error so the crew can check the code, host room, and network. **Play local co-op** runs both stations on one device without an online room.
 
 ### Controls
 
-- **Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot, arrow keys during rhythm challenges, and Space (or the on-screen button) to reel.
-- **Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pumping uses Space or the pump button, and welding requires tracing the seam with a press-and-drag.
+- **Local Fisher:** WASD to steer during aim challenges and match rhythm cues; Space casts or reels.
+- **Local Repairer:** use the arrow keys for alignment/engine challenges and the mouse or left click for the repair board and tools.
+- **Online Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot, arrow keys during rhythm challenges, and Space (or the on-screen button) to cast or reel.
+- **Online Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pump controls are clickable, and welding requires tracing the seam with a press-and-drag.
 
 ### Expedition loop
 
