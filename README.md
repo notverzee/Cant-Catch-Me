@@ -4,7 +4,7 @@ A browser-based, online co-op game for two. The Fisher hooks and reels in strang
 
 ## Play
 
-Open `index.html` from a static web host, such as GitHub Pages, and make sure both players use the same hosted page. The Fisher selects **Make a room** and shares the six-character code; the other player enters it under **Join a room**. The Fisher hosts the game and the joining player is the Engineer. An internet connection is required for PeerJS room signaling and the peer-to-peer connection. If joining does not finish, the game reports a timeout or connection error so the crew can check the code, host room, and network. **Play local co-op** runs both stations on one device without an online room.
+Open `index.html` from a static web host, such as GitHub Pages, and make sure both players use the same hosted page. From the **Play** menu, the Fisher selects **Host online voyage** and shares the six-character code; the other player enters it under **Join an online crew**. The Fisher hosts the game and the joining player is the Engineer. An internet connection is required for PeerJS room signaling and the peer-to-peer connection. Joining now performs a peer-link and game-state handshake and reports which stage fails, so the crew can check the room code, host room, or network. **Local co-op** runs both stations on one device without an online room; the **Controls** menu lists the local keys.
 
 ### Controls
 

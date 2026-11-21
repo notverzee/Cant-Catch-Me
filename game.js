@@ -37,7 +37,7 @@
   const arrowKeys = ["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"];
   const arrowGlyph = { ArrowUp: "↑", ArrowRight: "→", ArrowDown: "↓", ArrowLeft: "←" };
   const wasdKeys = { w: "ArrowUp", d: "ArrowRight", s: "ArrowDown", a: "ArrowLeft" };
-  const weldPath = [[0, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [1, .5]];
+  const weldPath = [[.02, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [.98, .5]];
   const boltSpots = [[.1, .18], [.32, .22], [.57, .15], [.84, .22], [.18, .72], [.43, .82], [.68, .68], [.89, .78], [.5, .47], [.27, .48]];
   const upgrades = {
     hull: { name: "Reinforced hull", description: "Take less damage from leaks and impacts.", base: 35 },
@@ -58,6 +58,7 @@
     roomCode: $("#room-code"),
     joinForm: $("#join-form"),
     joinCode: $("#join-code"),
+    menuTabs: $("#menu-tabs"),
     localButton: $("#practice-button"),
     copyCode: $("#copy-code"),
     roleBadge: $("#role-badge"),
@@ -149,6 +150,13 @@
 
   function canEngineerAct() {
     return mode === "local" || localRole === "engineer";
+  }
+
+  function aimBounds() {
+    const rect = el.oceanScene.getBoundingClientRect();
+    const marginX = Math.min(.1, 8 / Math.max(1, rect.width));
+    const marginY = Math.min(.1, 8 / Math.max(1, rect.height));
+    return { minX: marginX, maxX: 1 - marginX, minY: marginY, maxY: 1 - marginY };
   }
 
   function showMessage(message, isError = false) {
@@ -297,16 +305,17 @@
         return;
       }
       connection = incoming;
-      connection.on("open", () => {
-        enterGame("host", "fisher", gameState || initialState());
-        setConnectionLabel("Crew connected", true);
-        el.netStatus.textContent = "Online crew connected";
-        sendState();
-        toast("Crew connected. Happy hunting!");
+      connection.on("open", activateHostConnection);
+      connection.on("data", (message) => {
+        if (message && message.type === "hello") {
+          activateHostConnection();
+          return;
+        }
+        receiveMessage(message, "engineer");
       });
-      connection.on("data", (message) => receiveMessage(message, "engineer"));
       connection.on("close", handleConnectionClose);
       connection.on("error", () => toast("The crew connection had a problem.", true));
+      if (connection.open) activateHostConnection();
     });
     peer.on("error", (error) => {
       el.hostButton.disabled = false;
@@ -316,6 +325,17 @@
         peer = null;
       }
     });
+  }
+
+  function activateHostConnection() {
+    if (!connection || !connection.open) return;
+    const wasWaiting = mode === "lobby";
+    if (wasWaiting) enterGame("host", "fisher", gameState || initialState());
+    if (mode !== "host") return;
+    setConnectionLabel("Crew connected", true);
+    el.netStatus.textContent = "Online crew connected";
+    sendState();
+    if (wasWaiting) toast("Crew connected. Happy hunting!");
   }
 
   function joinRoom(code) {
@@ -333,18 +353,23 @@
     setConnectionLabel("Connecting to crew");
     clearConnectionTimer();
     connectionTimer = setTimeout(() => {
-      if (mode === "lobby") failJoin("Connection timed out. Check the room code, your internet connection, and that the host is still waiting.");
+      if (mode === "lobby") failJoin("Could not reach the room service. Check your internet connection and try again.");
     }, 15000);
     peer = new window.Peer();
     peer.on("open", () => {
       clearConnectionTimer();
       connectionTimer = setTimeout(() => {
-        if (mode === "lobby") failJoin("Connected to the room service, but the game did not respond. Ask the host to reopen the room and try again.");
+        if (mode === "lobby") failJoin("The room service is reachable, but the peer connection did not open. Confirm the host still has the room open and that both networks allow WebRTC.");
       }, 15000);
       connection = peer.connect(`ccm-${normalized}`, { reliable: true });
       connection.on("open", () => {
+        clearConnectionTimer();
+        connectionTimer = setTimeout(() => {
+          if (mode === "lobby") failJoin("The peer link opened, but the host did not send the voyage state. Ask the host to reopen the room and try again.");
+        }, 10000);
         setConnectionLabel("Syncing crew");
-        showMessage("Connected — syncing the voyage…");
+        showMessage("Peer link established — synchronizing the voyage…");
+        broadcast({ type: "hello" });
       });
       connection.on("data", (message) => receiveMessage(message, "engineer"));
       connection.on("close", handleConnectionClose);
@@ -515,11 +540,12 @@
       } else {
         fish.timeLeft -= 1;
         if (fish.type === "aim") {
-          fish.target.x = Math.min(.9, Math.max(.2, fish.target.x + (Math.random() - .5) * .1));
-          fish.target.y = Math.min(.76, Math.max(.23, fish.target.y + (Math.random() - .5) * .1));
-          const dx = fish.aim.x - fish.target.x;
-          const dy = fish.aim.y - fish.target.y;
-          if (Math.hypot(dx, dy) < .17) fish.progress = Math.min(fish.needed, fish.progress + 1);
+          fish.target.x = Math.min(.9, Math.max(.2, fish.target.x + (Math.random() - .5) * .06));
+          fish.target.y = Math.min(.76, Math.max(.23, fish.target.y + (Math.random() - .5) * .06));
+          const scene = el.oceanScene.getBoundingClientRect();
+          const dx = (fish.aim.x - fish.target.x) * (scene.width || 500);
+          const dy = (fish.aim.y - fish.target.y) * (scene.height || 170);
+          if (Math.hypot(dx, dy) <= 19) fish.progress = Math.min(fish.needed, fish.progress + 1);
           else fish.progress = Math.max(0, fish.progress - .35);
           if (fish.progress >= fish.needed) catchFish();
         }
@@ -613,15 +639,17 @@
       }
     } else if (action === "aimMove" && role === "fisher") {
       const fish = gameState.encounter;
-      if (fish && fish.stage === "hooked" && fish.type === "aim") {
-        fish.aim.x = Math.min(.98, Math.max(.02, fish.aim.x + data.dx));
-        fish.aim.y = Math.min(.95, Math.max(.05, fish.aim.y + data.dy));
+      if (fish && fish.stage === "hooked" && fish.type === "aim" && Number.isFinite(data.dx) && Number.isFinite(data.dy)) {
+        const bounds = aimBounds();
+        fish.aim.x = Math.max(bounds.minX, Math.min(bounds.maxX, fish.aim.x + data.dx));
+        fish.aim.y = Math.max(bounds.minY, Math.min(bounds.maxY, fish.aim.y + data.dy));
       }
     } else if (action === "aimPosition" && role === "fisher") {
       const fish = gameState.encounter;
       if (fish && fish.stage === "hooked" && fish.type === "aim" && Number.isFinite(data.x) && Number.isFinite(data.y)) {
-        fish.aim.x = Math.min(1, Math.max(0, data.x));
-        fish.aim.y = Math.min(1, Math.max(0, data.y));
+        const bounds = aimBounds();
+        fish.aim.x = Math.max(bounds.minX, Math.min(bounds.maxX, data.x));
+        fish.aim.y = Math.max(bounds.minY, Math.min(bounds.maxY, data.y));
       }
     } else if (action === "repair" && role === "engineer") {
       const issue = issueById(data.id);
@@ -679,7 +707,7 @@
     } else if (issue.type === "weld") {
       if (data.mode !== "weld" || !Number.isFinite(data.value)) return;
       issue.progress = Math.max(issue.progress, Math.min(issue.progress + .04, Math.min(1, Math.max(0, data.value))));
-      if (issue.progress >= .99) finish();
+      if (issue.progress >= .97) finish();
     } else if (issue.type === "bolts") {
       if (data.mode !== "bolt" || !Number.isInteger(data.index) || data.index < 0 || data.index > 5) return;
       if (!issue.bolts.includes(data.index)) issue.bolts.push(data.index);
@@ -1167,11 +1195,14 @@
       }
       if (fish.stage === "hooked" && fish.type === "aim") {
         const aimMoves = {
-          ArrowUp: [0, -.08], w: [0, -.08], ArrowDown: [0, .08], s: [0, .08],
-          ArrowLeft: [-.08, 0], a: [-.08, 0], ArrowRight: [.08, 0], d: [.08, 0]
+          ArrowUp: [0, -.02], w: [0, -.02], ArrowDown: [0, .02], s: [0, .02],
+          ArrowLeft: [-.02, 0], a: [-.02, 0], ArrowRight: [.02, 0], d: [.02, 0]
         };
         const move = mode === "local" ? aimMoves[event.key.toLowerCase()] : aimMoves[event.key] || aimMoves[event.key.toLowerCase()];
-        if (move) sendAction("aimMove", { dx: move[0], dy: move[1] }, "fisher");
+        if (move && Date.now() - lastAimSent > 45) {
+          lastAimSent = Date.now();
+          sendAction("aimMove", { dx: move[0], dy: move[1] }, "fisher");
+        }
       }
       if (fish.stage === "hooked" && fish.type === "reel" && event.code === "Space" && Date.now() - lastReelSent > 95) {
         lastReelSent = Date.now();
@@ -1190,7 +1221,7 @@
 
   function handleOceanPointer(event) {
     if (mode === "local" || !canFisherAct() || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
-    if (Date.now() - lastAimSent < 60) return;
+    if (Date.now() - lastAimSent < 45) return;
     lastAimSent = Date.now();
     const rect = el.oceanScene.getBoundingClientRect();
     sendAction("aimPosition", { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }, "fisher");
@@ -1217,12 +1248,31 @@
       const distance = Math.hypot((x - px) * rect.width, (y - py) * rect.height);
       if (distance < nearest.distance) nearest = { progress: (index + projection) / (weldPath.length - 1), distance };
     }
-    if (nearest.distance <= 24 && nearest.progress > issue.progress + .012 && nearest.progress <= issue.progress + .08) {
+    if (nearest.distance <= 24 && nearest.progress > issue.progress + .005 && nearest.progress <= issue.progress + .08) {
       sendAction("repair", { id: issue.id, room: issue.room, mode: "weld", value: nearest.progress }, "engineer");
     }
   }
 
   function bindEvents() {
+    el.menuTabs.addEventListener("click", (event) => {
+      const selectedTab = event.target.closest("[data-menu]");
+      if (!selectedTab) return;
+      el.menuTabs.querySelectorAll("[data-menu]").forEach((tab) => {
+        const selected = tab === selectedTab;
+        tab.classList.toggle("active", selected);
+        tab.setAttribute("aria-selected", String(selected));
+        document.getElementById(tab.dataset.menu).classList.toggle("hidden", !selected);
+      });
+    });
+    el.menuTabs.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const tabs = [...el.menuTabs.querySelectorAll("[data-menu]")];
+      const currentIndex = tabs.indexOf(document.activeElement);
+      const nextIndex = (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[nextIndex].focus();
+      tabs[nextIndex].click();
+    });
     el.hostButton.addEventListener("click", startHostRoom);
     el.joinForm.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -1261,7 +1311,10 @@
       }
     });
     el.repairChallenge.addEventListener("pointermove", handleWeldPointerMove);
-    el.repairChallenge.addEventListener("pointerup", () => { weldPointerDown = false; });
+    el.repairChallenge.addEventListener("pointerup", (event) => {
+      handleWeldPointerMove(event);
+      weldPointerDown = false;
+    });
     el.repairChallenge.addEventListener("pointercancel", () => { weldPointerDown = false; });
     el.closeRepair.addEventListener("click", () => {
       resetRepairPanel();
