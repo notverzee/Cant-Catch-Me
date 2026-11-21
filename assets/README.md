@@ -2,6 +2,8 @@
 
 The game runs without artwork and uses its built-in ocean and submarine fallbacks. To use your own art, put the image in this folder and update the matching entry in [`manifest.js`](./manifest.js). Keep the slot key and update `src` if you choose a different filename; the game looks up art by these keys.
 
+`logo.png` is used directly by `index.html` for the main title, header logo, and browser tab icon; it is not a gameplay artwork slot in the manifest.
+
 | Slot | Suggested filename | Canvas size | Notes |
 | --- | --- | ---: | --- |
 | Submarine | `submarine.png` | 512 × 320 px | Transparent PNG or WebP; side view, centered, contain-fit |

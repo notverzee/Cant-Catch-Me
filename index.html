@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#030809">
+  <link rel="icon" type="image/png" href="assets/logo.png">
   <title>Can't Catch Me — Deep Sea Co-op</title>
   <link rel="stylesheet" href="styles.css">
   <script src="relay-config.js"></script>
@@ -14,7 +15,7 @@
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Can't Catch Me home">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M7 25h34l-7 9H17l-10-9Z"/><path d="M18 25v-7h10l6 7M14 37h20"/><circle cx="27" cy="27" r="2"/></svg></span>
+        <img class="brand-logo" src="assets/logo.png" alt="">
         <span>CAN'T CATCH ME <small>DEEP SEA CO-OP</small></span>
       </a>
       <div class="top-status"><span class="status-dot"></span><span id="connection-label">Crew not connected</span></div>
@@ -90,7 +91,7 @@
         </div>
         <aside class="menu-hero">
           <p class="eyebrow">DEEP SEA SURVIVAL · CO-OP / SOLO</p>
-          <h1>CAN'T CATCH<br><span>ME.</span></h1>
+          <h1 class="menu-logo-title"><img src="assets/logo.png" alt="Can't Catch Me"></h1>
           <p class="intro">The deeper you go, the stranger the life — and the thinner the hull.</p>
           <div class="menu-scene" aria-hidden="true">
             <span class="sonar-ring sonar-ring-one"></span><span class="sonar-ring sonar-ring-two"></span>
@@ -106,7 +107,7 @@
 
     <section class="game hidden" id="game">
       <div class="game-heading">
-        <div><h2>Pelagic Passage</h2></div>
+        <div><h2>Can't Catch Me</h2></div>
         <div class="game-heading-right"><span class="role-badge" id="role-badge">LOCAL CREW</span><button class="quiet-button" id="leave-button">Leave voyage</button></div>
       </div>
 
@@ -131,8 +132,11 @@
           <div class="ocean-scene">
             <img id="fish-image" alt="" hidden>
             <div class="ocean-silhouette" aria-hidden="true"><span>◉</span></div>
+            <div class="swimming-fish" id="swimming-fish" aria-label="Passing fish"></div>
+            <div class="shoal-cursor hidden" id="shoal-cursor" aria-hidden="true"><span></span></div>
             <div class="ocean-copy"><span class="eyebrow" id="encounter-rarity">SCANNING THE DEEP</span><h4 id="encounter-title">The water is quiet</h4><p id="encounter-copy">A new catch could appear at any moment.</p></div>
           </div>
+          <div class="fishing-meta"><span class="harpoon-warning hidden" id="harpoon-warning">HARPOON DAMAGED · FISHING LOCKED</span><span class="bait-count" id="bait-count">10 bait</span></div>
           <div class="fishing-controls">
             <div class="challenge-copy"><b id="fishing-task-title">Standing by</b><span id="fishing-task-help">Watch for a bite and follow the on-screen challenge.</span></div>
             <div class="challenge-actions" id="fishing-actions"><button class="action-button" disabled>Waiting for a bite</button></div>
@@ -162,12 +166,36 @@
       <section class="shop-panel hidden" id="shop-panel">
         <div class="shop-heading"><div><p class="eyebrow">SAFE WATER · CHECKPOINT</p><h3>Trade & refit</h3></div><button class="icon-button" id="close-shop" aria-label="Close shop">×</button></div>
         <p id="inventory-copy">Sell your haul and invest in upgrades for the crew.</p>
+        <div class="bait-restock"><span><b>Harpoon bait</b><small>One bait is used for each fishing encounter. Restock ten at a time.</small></span><button class="secondary-button" id="buy-bait">Restock 10 bait · 5 G</button></div>
         <div class="shop-actions"><button class="secondary-button" id="sell-button">Sell all fish <span id="inventory-value">+0 ◈</span></button><div class="upgrade-list" id="upgrade-list"></div></div>
       </section>
+      <div class="quick-chat hidden" id="quick-chat" aria-label="Quick chat">
+        <span>QUICK CHAT</span>
+        <button type="button" data-chat="Fish on the line!">Fish on!</button>
+        <button type="button" data-chat="Hull needs help!">Hull help!</button>
+        <button type="button" data-chat="Harpoon is broken!">Harpoon!</button>
+        <button type="button" data-chat="Repair the engine!">Engine!</button>
+        <button type="button" data-chat="Restock bait at the checkpoint!">Restock bait!</button>
+      </div>
       <section class="game-over hidden" id="game-over">
         <div><p class="eyebrow">EXPEDITION ENDED</p><b>The hull couldn't take any more.</b><span>Start a new voyage to give it another go.</span></div>
         <button class="secondary-button" id="restart-button">Start new voyage <span aria-hidden="true">→</span></button>
       </section>
+    </section>
+    <section class="story-overlay hidden" id="story-overlay" role="dialog" aria-modal="true" aria-labelledby="story-title">
+      <div class="story-panel">
+        <div class="story-art" id="story-art" role="img" aria-label="A submarine descending into the deep">
+          <span class="story-sonar sonar-one"></span><span class="story-sonar sonar-two"></span>
+          <svg viewBox="0 0 180 100" aria-hidden="true"><path d="M22 51h132l-17 18H52L22 51Z"/><path d="M66 51V32h39l23 19M43 77h91M57 83h65"/><circle cx="97" cy="55" r="5"/></svg>
+          <span class="story-depth">FAMILY EXPEDITION · DEEP OCEAN</span>
+        </div>
+        <div class="story-copy">
+          <span class="eyebrow">THE FAMILY LOG · <span id="story-step">01 / 03</span></span>
+          <h2 id="story-title"></h2>
+          <p id="story-text"></p>
+          <button class="primary-button" id="story-continue" type="button">Continue <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

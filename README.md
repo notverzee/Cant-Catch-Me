@@ -10,6 +10,8 @@ Open `index.html` from a static web host such as GitHub Pages. The **Play** menu
 - **Local co-op:** Two players share one device. The Fisher uses WASD and Space; the Repairer uses the arrow keys and mouse.
 - **Solo dive:** One player handles both stations using the local controls.
 
+Every expedition opens with a short family-log cutscene. During the dive, the Fisher can hook fish through aim, rhythm, reel, and shoal encounters; the Repairer handles system faults, including a robotic-arm barnacle scraper. Online crews can send preset quick-chat messages.
+
 ## Deploy the online relay
 
 The browser game is static, so the relay runs as a separate Node service. This repository includes a Render Blueprint in `render.yaml`.
@@ -22,17 +24,17 @@ Room codes and connections are held in memory; redeploying or restarting the rel
 
 ### Controls
 
-- **Local Fisher:** WASD to steer during aim challenges and match rhythm cues; Space casts or reels.
+- **Local Fisher:** WASD to steer during aim and shoal challenges and match rhythm cues; Space casts, reels, or catches a fish under the shoal cursor.
 - **Local Repairer:** use the arrow keys for alignment/engine challenges and the mouse or left click for the repair board and tools.
-- **Online Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot, arrow keys during rhythm challenges, and Space (or the on-screen button) to cast or reel.
-- **Online Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pump controls are clickable, and welding requires tracing the seam with a press-and-drag.
+- **Online Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot or click shoal fish, arrow keys during rhythm challenges, and Space (or the on-screen button) to cast or reel.
+- **Online Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pump controls and barnacle targets are clickable, and welding requires tracing the seam with a press-and-drag. Quick chat is available below the stations.
 - **Solo:** Use the local Fisher and Repairer controls to run both stations.
 
 ### Expedition loop
 
-Catch fish and carry them to a 250-meter checkpoint to sell for crew gold. Spend gold on shared hull, harpoon, lure, fuel, and bilge upgrades. Each purchase raises that upgrade's next price by 5%. Missed catches can damage the hull and create new repairs; leaks, water, fuel faults, and a broken harpoon affect the whole crew. A breached hull ends the voyage.
+Each fishing encounter consumes one bait. Restock ten bait for 5 gold at checkpoints; the price rises slowly over repeated purchases. Catch fish and carry them to a 250-meter checkpoint to sell for crew gold. Spend gold on shared hull, harpoon, lure, fuel, bilge, and bait supplies. Each upgrade purchase raises that upgrade's next price by 5%. Missed catches can damage the hull and create new repairs; critical system faults rapidly drain their associated hull, fuel, or bilge resources until repaired. A breached hull ends the voyage.
 
-Fish values follow the brainstorming notes: Trash 1, Common 5–10, Uncommon 15–20, Rare 30–40, Epic 45–60, Legendary 80–100, Mythic 120–150, and Treasure 300 gold. Each rarity can contain several species, including sprats, ribbon eels, glassfin, vampire squid, starwhales, and more. The supplied spawn figures (20%, 70%, 50%, 40%, 35%, 10%, 1%, and 0.005%) add up to more than 100%, so the game treats them as relative spawn weights and normalizes them into a valid weighted roll. The lure upgrade improves the odds of higher rarities.
+The expedition includes the species listed in [`Fish.txt`](./Fish.txt), with each rarity's species priced from cheapest to most expensive in listed order and illustrated with procedural species art. After 1,000 catches without a Legendary, 5,000 without a Mythic, or 12,500 without Treasure, pity guarantees that rarity on the next encounter. The supplied rarity weights are normalized into a weighted roll; the lure upgrade improves the odds of higher rarities.
 
 ## Artwork and future changes
 
