@@ -7,13 +7,13 @@ Involves one of the players being "in" a submarine controlling and repairing it 
 They would be using an interactive board with missions on it. But before doing the task they must navigate to the room that has the problem.
 
 Engineer Missions include:
-Realignment of the ship: Press between two buttons to either change its direction up or down. 
-Turn the valve: Turn a valve to stop gas from leaking.
-Weld the hull: Move a "welding torch" across the screen to follow a line to weld it shut.
-Pump The gas: use the pump to refuel the engine.
-Restart the engine: input a sequence of buttons to restart the engine.
-Pump The water: Pump the water out of the ship.
-Fix the bolts: little bolts appear around the screen that you have to hammer in to make sure they don't burst out. 
+Realignment of the ship: Press between two buttons to either change its direction up or down. Type of mission = "navigation"
+Turn the valve: Turn a valve to stop gas from leaking. Type of mission = "system"
+Weld the hull: Move a "welding torch" across the screen to follow a line to weld it shut. Type of mission = "damage"
+Pump The gas: use the pump to refuel the engine. Type of mission = "system"
+Restart the engine: input a sequence of buttons to restart the engine. Type of mission = "system"
+Pump The water: Pump the water out of the ship. Type of mission = "damage"
+Fix the bolts: little bolts appear around the screen that you have to hammer in to make sure they don't burst out. Type of mission = "damage"
 
 Fisher Part of the game: 
 They will be fishing for rare fish in the deep ocean, using their harpoon gun they have to real in fish by completing mini games.
@@ -37,3 +37,7 @@ Shop/Checkpoints:
 There will be a checkpoint every ___ meters that has a shop.
 In the shop you will be able to sell your fish to get money and buy upgrades for the submarine.
 Each time you buy an upgrade it will make the price go up by 5% for next time you try to buy it.
+You can only buy up to 3 of each upgrade at shop and the players will not be able to buy more until the next shop.
+
+Upgrades:
+Reinforced Hull: causes all damage
