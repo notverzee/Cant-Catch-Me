@@ -31,7 +31,7 @@ Rare, 30 to 40 gold, 40% chance to spawn
 Epic, 45 to 60 gold, 35% chance to spawn
 Legendary, 80 to 100 gold, 10% chance to spawn
 Mythic, 120 to 150 gold, 1% chance to spawn
-Treasure, 
+Treasure, 300 gold, 0.005% chance to spawn
 
 Shop/Checkpoints:
 There will be a checkpoint every ___ meters that has a shop.
