@@ -1,0 +1,82 @@
+Decide prices as you think they should be worth (Cheapest is first, most expensive is last)
+
+TRASH:
+Can
+Boot
+Tire
+
+COMMON:
+Blue Gill
+Yellow Perch
+Common Carp
+Rainbow Trout
+Largemouth Bass
+Channel Catfish
+Sardine
+Atlantic Mackerel
+Tilapia
+Goldfish
+
+UNCOMMON:
+Northern Pike
+Walleye
+Clownfish
+Lionfish
+Moray Eel
+Red Snapper
+Angelfish
+Antlantic Cod
+Haddock
+Flounder
+
+RARE:
+Arowana
+Swordfish
+Mahi-Mahi
+Electric Eel
+Pufferfish
+Blue Tang
+Barracuda
+Sailfish
+Triggerfish
+Atlantic Halibut
+
+EPIC:
+Ocean Sunfish
+Oarfish
+Giant Grouper
+Blue Marlin
+Coelacanth
+Arapaima
+Giant Freshwater Stingray
+Sturgeon
+Napoleon Wrasse
+Greenland Shark
+
+LEGENDARY:
+Great White Shark
+Whale Shark
+Basking Shark
+Goblin Shark
+Megamouth Shark
+Frilled Shark
+Bluedfin Tuna
+Sawfish
+Greenland Halibut
+Shortfin Mako Shark
+
+MYTHIC:
+Black Dragon Fish
+Deep Sea Anglefish
+Pelican Eel
+Gulper Eel
+Barreleye Fish
+Fangtooth Fish
+Viperfish
+Lanternfish
+Hatchefish
+Tripod Fish
+
+TREASURE:
+Gold
+Chest
