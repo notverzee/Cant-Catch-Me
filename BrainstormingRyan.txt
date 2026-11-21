@@ -40,4 +40,7 @@ Each time you buy an upgrade it will make the price go up by 5% for next time yo
 You can only buy up to 3 of each upgrade at shop and the players will not be able to buy more until the next shop.
 
 Upgrades:
-Reinforced Hull: causes all damage
+Reinforced Hull: causes all "damage" missions to be 10% easier to complete 
+Stronger engine: causes all "system" missions to be 10% easier to complete  
+engine clock speed: causes the speed of the submarine to go faster by 7.5% faster.
+update map: causes all "navigation" missions to be 10% easier to complete
