@@ -59,7 +59,8 @@
     joinForm: $("#join-form"),
     joinCode: $("#join-code"),
     menuTabs: $("#menu-tabs"),
-    localButton: $("#practice-button"),
+    localButton: $("#local-button"),
+    soloButton: $("#solo-button"),
     copyCode: $("#copy-code"),
     roleBadge: $("#role-badge"),
     leaveButton: $("#leave-button"),
@@ -109,8 +110,8 @@
   };
 
   let gameState;
-  let peer;
-  let connection;
+  let socket;
+  let socketRole;
   let mode = "lobby";
   let localRole = "fisher";
   let selectedIssueId = null;
@@ -145,11 +146,15 @@
   }
 
   function canFisherAct() {
-    return mode === "local" || localRole === "fisher";
+    return isSharedControlMode() || localRole === "fisher";
   }
 
   function canEngineerAct() {
-    return mode === "local" || localRole === "engineer";
+    return isSharedControlMode() || localRole === "engineer";
+  }
+
+  function isSharedControlMode() {
+    return mode === "local" || mode === "solo";
   }
 
   function aimBounds() {
@@ -224,12 +229,10 @@
 
   function failJoin(message) {
     clearConnectionTimer();
-    const pendingConnection = connection;
-    const pendingPeer = peer;
-    connection = null;
-    peer = null;
-    if (pendingConnection) pendingConnection.close();
-    if (pendingPeer) pendingPeer.destroy();
+    const pendingSocket = socket;
+    socket = null;
+    socketRole = null;
+    if (pendingSocket && pendingSocket.readyState < WebSocket.CLOSING) pendingSocket.close();
     el.joinForm.querySelector("button").disabled = false;
     setConnectionLabel("Crew not connected");
     showMessage(message, true);
@@ -244,12 +247,12 @@
     el.game.classList.remove("hidden");
     $(".shell").classList.add("in-game");
     el.roleBadge.textContent = role.toUpperCase();
-    el.netStatus.textContent = mode === "local" ? "Local co-op · Fisher WASD + Space · Repairer arrows + mouse" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
+    el.netStatus.textContent = mode === "local" ? "Local co-op · Fisher WASD + Space · Repairer arrows + mouse" : mode === "solo" ? "Solo expedition · WASD + Space · arrows + mouse" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
     if (mode === "client") setConnectionLabel("Crew connected", true);
     selectedIssueId = null;
     repairSignature = "";
-    if (mode === "local" && gameState.issues.length === 0) makeIssue();
-    if (mode === "host" || mode === "local") startHostTimer();
+    if (isSharedControlMode() && gameState.issues.length === 0) makeIssue();
+    if (mode === "host" || isSharedControlMode()) startHostTimer();
     render();
   }
 
@@ -257,13 +260,10 @@
     clearInterval(hostTimer);
     clearConnectionTimer();
     hostTimer = null;
-    if (connection) {
-      connection.close();
-      connection = null;
-    }
-    if (peer) {
-      peer.destroy();
-      peer = null;
+    if (socket) {
+      socket.close();
+      socket = null;
+      socketRole = null;
     }
     mode = "lobby";
     gameState = null;
@@ -281,54 +281,152 @@
 
   function randomCode() {
     const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-    return Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    const values = new Uint32Array(6);
+    window.crypto.getRandomValues(values);
+    return Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
+  }
+
+  function relayUrl() {
+    if (typeof window.CCM_RELAY_URL !== "string" || !window.CCM_RELAY_URL.trim()) {
+      showMessage("The online relay is not configured. Deploy the Render service and set its URL in relay-config.js.", true);
+      return null;
+    }
+    try {
+      const url = new URL(window.CCM_RELAY_URL, window.location.href);
+      if (!["ws:", "wss:"].includes(url.protocol) || (window.location.protocol === "https:" && url.protocol !== "wss:")) {
+        throw new Error("Relay URL must use secure WebSockets (wss://) on an HTTPS page.");
+      }
+      return url.href;
+    } catch (error) {
+      showMessage(error.message || "The relay URL in relay-config.js is invalid.", true);
+      return null;
+    }
+  }
+
+  function failHostRoom(message) {
+    clearConnectionTimer();
+    const pendingSocket = socket;
+    socket = null;
+    socketRole = null;
+    if (pendingSocket && pendingSocket.readyState < WebSocket.CLOSING) pendingSocket.close();
+    el.hostButton.disabled = false;
+    el.roomDisplay.classList.add("hidden");
+    setConnectionLabel("Crew not connected");
+    showMessage(message, true);
+  }
+
+  function connectRelay(role, code) {
+    const url = relayUrl();
+    if (!url) {
+      if (role === "host") el.hostButton.disabled = false;
+      else el.joinForm.querySelector("button").disabled = false;
+      return;
+    }
+    if (typeof WebSocket === "undefined") {
+      showMessage("This browser does not support WebSockets, which the online relay requires.", true);
+      setConnectionLabel("Crew not connected");
+      if (role === "host") el.hostButton.disabled = false;
+      else el.joinForm.querySelector("button").disabled = false;
+      return;
+    }
+    let relaySocket;
+    try {
+      relaySocket = new WebSocket(url);
+    } catch (error) {
+      const message = error.message || "Could not open the online relay connection.";
+      if (role === "host") failHostRoom(message);
+      else failJoin(message);
+      return;
+    }
+    socket = relaySocket;
+    socketRole = role;
+    clearConnectionTimer();
+    connectionTimer = setTimeout(() => {
+      if (socket !== relaySocket || mode !== "lobby") return;
+      const message = "The relay server did not respond in time. Check its Render deployment and try again.";
+      if (role === "host") failHostRoom(message);
+      else failJoin(message);
+    }, 90000);
+    relaySocket.addEventListener("open", () => {
+      if (socket !== relaySocket) return;
+      try {
+        relaySocket.send(JSON.stringify({ type: role === "host" ? "host" : "join", code }));
+      } catch {
+        if (role === "host") failHostRoom("Could not register the room with the relay server.");
+        else failJoin("Could not join the room through the relay server.");
+      }
+    });
+    relaySocket.addEventListener("message", (event) => {
+      if (socket !== relaySocket) return;
+      let packet;
+      try {
+        packet = JSON.parse(event.data);
+      } catch {
+        if (role === "host") failHostRoom("The relay server sent an invalid response.");
+        else failJoin("The relay server sent an invalid response.");
+        return;
+      }
+      handleRelayPacket(packet, role);
+    });
+    relaySocket.addEventListener("error", () => {
+      if (socket === relaySocket && mode === "lobby") {
+        showMessage("Could not reach the relay server. Check that the Render service is running.", true);
+      }
+    });
+    relaySocket.addEventListener("close", () => handleConnectionClose(relaySocket, role));
   }
 
   function startHostRoom() {
-    if (!window.Peer) {
-      showMessage("The online connection library could not load. Check your internet connection and reload.", true);
+    let code;
+    try {
+      code = randomCode();
+    } catch {
+      showMessage("Secure room codes need a browser that supports cryptographic randomness. Open the game over HTTPS and try again.", true);
       return;
     }
-    const code = randomCode();
     el.hostButton.disabled = true;
-    showMessage("Opening a room…");
-    peer = new window.Peer(`ccm-${code}`);
-    peer.on("open", () => {
-      el.roomCode.textContent = code;
+    showMessage("Connecting to the online relay…");
+    setConnectionLabel("Connecting to relay");
+    connectRelay("host", code);
+  }
+
+  function handleRelayPacket(packet, role) {
+    if (!packet || typeof packet !== "object") return;
+    if (packet.type === "room-ready" && role === "host") {
+      clearConnectionTimer();
+      el.roomCode.textContent = packet.code;
       el.roomDisplay.classList.remove("hidden");
       showMessage("Room is ready. Keep this page open while your friend joins.");
       setConnectionLabel("Waiting for crew");
-    });
-    peer.on("connection", (incoming) => {
-      if (connection) {
-        incoming.close();
-        return;
-      }
-      connection = incoming;
-      connection.on("open", activateHostConnection);
-      connection.on("data", (message) => {
-        if (message && message.type === "hello") {
-          activateHostConnection();
-          return;
-        }
-        receiveMessage(message, "engineer");
-      });
-      connection.on("close", handleConnectionClose);
-      connection.on("error", () => toast("The crew connection had a problem.", true));
-      if (connection.open) activateHostConnection();
-    });
-    peer.on("error", (error) => {
-      el.hostButton.disabled = false;
-      showMessage(error.type === "unavailable-id" ? "That room code is already in use. Try making another room." : `Could not open the room (${error.type || "network error"}). Check your connection and try again.`, true);
-      if (peer) {
-        peer.destroy();
-        peer = null;
-      }
-    });
+    } else if (packet.type === "room-joined" && role === "client") {
+      clearConnectionTimer();
+      connectionTimer = setTimeout(() => {
+        if (mode === "lobby") failJoin("The relay connected, but the host did not send the voyage state. Ask the host to reopen the room and try again.");
+      }, 15000);
+      setConnectionLabel("Syncing crew");
+      showMessage("Connected to the relay — synchronizing the voyage…");
+      broadcast({ type: "hello" });
+    } else if (packet.type === "guest-joined" && role === "host") {
+      activateHostConnection();
+    } else if (packet.type === "guest-left" || packet.type === "host-left") {
+      handlePeerLeft(role);
+    } else if (packet.type === "game-message") {
+      receiveMessage(packet.message, "engineer");
+    } else if (packet.type === "room-error") {
+      const messages = {
+        "invalid-code": "Enter a valid six-character room code.",
+        "room-in-use": "That room code is already in use. Open another room.",
+        "room-not-found": "That room is not open. Check the code and ask your friend to host again.",
+        "room-full": "That room already has a crewmate."
+      };
+      const message = messages[packet.code] || "The relay server could not complete that request.";
+      if (role === "host") failHostRoom(message);
+      else failJoin(message);
+    }
   }
 
   function activateHostConnection() {
-    if (!connection || !connection.open) return;
+    if (!socket || socket.readyState !== WebSocket.OPEN || socketRole !== "host") return;
     const wasWaiting = mode === "lobby";
     if (wasWaiting) enterGame("host", "fisher", gameState || initialState());
     if (mode !== "host") return;
@@ -339,10 +437,6 @@
   }
 
   function joinRoom(code) {
-    if (!window.Peer) {
-      showMessage("The online connection library could not load. Check your internet connection and reload.", true);
-      return;
-    }
     const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (normalized.length !== 6) {
       showMessage("Enter the six-character room code.", true);
@@ -351,59 +445,46 @@
     el.joinForm.querySelector("button").disabled = true;
     showMessage("Connecting to your crewmate…");
     setConnectionLabel("Connecting to crew");
-    clearConnectionTimer();
-    connectionTimer = setTimeout(() => {
-      if (mode === "lobby") failJoin("Could not reach the room service. Check your internet connection and try again.");
-    }, 15000);
-    peer = new window.Peer();
-    peer.on("open", () => {
-      clearConnectionTimer();
-      connectionTimer = setTimeout(() => {
-        if (mode === "lobby") failJoin("The room service is reachable, but the peer connection did not open. Confirm the host still has the room open and that both networks allow WebRTC.");
-      }, 15000);
-      connection = peer.connect(`ccm-${normalized}`, { reliable: true });
-      connection.on("open", () => {
-        clearConnectionTimer();
-        connectionTimer = setTimeout(() => {
-          if (mode === "lobby") failJoin("The peer link opened, but the host did not send the voyage state. Ask the host to reopen the room and try again.");
-        }, 10000);
-        setConnectionLabel("Syncing crew");
-        showMessage("Peer link established — synchronizing the voyage…");
-        broadcast({ type: "hello" });
-      });
-      connection.on("data", (message) => receiveMessage(message, "engineer"));
-      connection.on("close", handleConnectionClose);
-      connection.on("error", () => {
-        if (mode === "lobby") failJoin("Could not reach that room. Check the code and try again.");
-        else toast("The crew connection had a problem.", true);
-      });
-    });
-    peer.on("error", (error) => {
-      const message = error.type === "peer-unavailable" ? "That room is not open. Check the code and ask your friend to reopen it." : `Could not connect (${error.type || "network error"}). Check your connection and try again.`;
-      if (mode === "lobby") failJoin(message);
-      else toast(message, true);
-    });
+    connectRelay("client", normalized);
   }
 
-  function handleConnectionClose() {
-    if (mode === "lobby" && !connection && !peer) return;
-    connection = null;
+  function handleConnectionClose(closedSocket, role) {
+    if (socket !== closedSocket) return;
+    socket = null;
+    socketRole = null;
     setConnectionLabel("Crew disconnected");
-    if (mode === "client") {
+    if (mode === "lobby" && role === "host") {
+      clearConnectionTimer();
+      el.hostButton.disabled = false;
+      el.roomDisplay.classList.add("hidden");
+      showMessage("The relay connection closed before the room was ready. Check the server and try again.", true);
+    } else if (mode === "lobby") {
+      failJoin("The connection closed before the voyage synced. Check the room code and try again.");
+    } else if (mode === "client") {
       el.netStatus.textContent = "Crew connection lost";
       toast("The connection to the host was lost.", true);
-    } else if (mode === "lobby") {
-      failJoin("The host closed the connection before the voyage synced. Check the code and try again.");
     } else if (mode === "host") {
       el.netStatus.textContent = "Crew disconnected · waiting for a new connection";
       toast("Your crewmate disconnected.", true);
-      connection = null;
+    }
+  }
+
+  function handlePeerLeft(role) {
+    setConnectionLabel("Crew disconnected");
+    if (mode === "client") {
+      el.netStatus.textContent = "Crew connection lost";
+      toast(role === "client" ? "The host left the room." : "Your crewmate left the room.", true);
+    } else if (mode === "host") {
+      el.netStatus.textContent = "Crew disconnected · waiting for a new connection";
+      toast(role === "host" ? "Your crewmate disconnected." : "The host closed the room.", true);
     }
   }
 
   function receiveMessage(message, senderRole) {
     if (!message || typeof message !== "object") return;
-    if (message.type === "action" && (mode === "host" || mode === "local")) {
+    if (message.type === "hello" && mode === "host") {
+      activateHostConnection();
+    } else if (message.type === "action" && (mode === "host" || isSharedControlMode())) {
       applyAction(message.action, message.data || {}, senderRole);
     } else if (message.type === "state" && mode !== "host" && message.state && typeof message.state === "object") {
       clearConnectionTimer();
@@ -416,11 +497,11 @@
   }
 
   function broadcast(message) {
-    if (connection && connection.open) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
       try {
-        connection.send(message);
+        socket.send(JSON.stringify({ type: "game-message", message }));
       } catch {
-        toast("Could not send game update. The connection may be closed.", true);
+        toast("Could not send game update. The relay connection may be closed.", true);
       }
     }
   }
@@ -435,9 +516,9 @@
   }
 
   function sendAction(action, data = {}, role = localRole) {
-    if (mode === "local" || mode === "host") {
+    if (isSharedControlMode() || mode === "host") {
       applyAction(action, data, role);
-    } else if (mode === "client" && connection && connection.open) {
+    } else if (mode === "client" && socket && socket.readyState === WebSocket.OPEN) {
       broadcast({ type: "action", action, data });
     }
   }
@@ -812,8 +893,8 @@
 
     if (fish.stage === "bite") {
       el.fishingTaskTitle.textContent = "A bite!";
-      el.fishingTaskHelp.textContent = mode === "local" ? "Fisher: press Space or cast before the fish gets away." : "Cast your harpoon before the fish gets away.";
-      const button = makeButton(mode === "local" ? "CAST  ·  SPACE" : "Cast harpoon", {}, "action-button");
+      el.fishingTaskHelp.textContent = isSharedControlMode() ? "Fisher: press Space or cast before the fish gets away." : "Cast your harpoon before the fish gets away.";
+      const button = makeButton(isSharedControlMode() ? "CAST  ·  SPACE" : "Cast harpoon", {}, "action-button");
       button.dataset.fishing = "cast";
       const harpoonOffline = gameState.issues.some((issue) => issue.type === "harpoon");
       if (harpoonOffline) button.textContent = "Harpoon offline";
@@ -824,7 +905,7 @@
 
     if (fish.type === "aim") {
       el.fishingTaskTitle.textContent = "Keep the aim steady";
-      el.fishingTaskHelp.textContent = mode === "local"
+      el.fishingTaskHelp.textContent = isSharedControlMode()
         ? "Fisher: use WASD to keep the dot inside the drifting ring."
         : "Move the dot into the drifting ring and hold it there. Use mouse or WASD / arrows.";
       target.classList.remove("hidden");
@@ -836,7 +917,7 @@
       el.fishingActions.innerHTML = progressMarkup(fish.progress, fish.needed);
     } else if (fish.type === "rhythm") {
       el.fishingTaskTitle.textContent = "Match the rhythm";
-      el.fishingTaskHelp.textContent = mode === "local"
+      el.fishingTaskHelp.textContent = isSharedControlMode()
         ? "Fisher: tap W, D, S, A to match the sequence before the line goes slack."
         : "Press the arrows in sequence before the line goes slack.";
       const keys = document.createElement("div");
@@ -1118,9 +1199,9 @@
 
   function render() {
     if (!gameState) return;
-    el.roleBadge.textContent = mode === "local" ? "LOCAL CREW" : localRole.toUpperCase();
-    el.fisherOwner.textContent = mode === "local" ? "LOCAL PLAYER 1" : mode === "host" ? "YOU" : "CREWMATE";
-    el.engineerOwner.textContent = mode === "local" ? "LOCAL PLAYER 2" : mode === "host" ? (connection ? "CREWMATE" : "WAITING") : "YOU";
+    el.roleBadge.textContent = mode === "local" ? "LOCAL CREW" : mode === "solo" ? "SOLO PILOT" : localRole.toUpperCase();
+    el.fisherOwner.textContent = mode === "local" ? "LOCAL PLAYER 1" : mode === "solo" ? "YOU" : mode === "host" ? "YOU" : "CREWMATE";
+    el.engineerOwner.textContent = mode === "local" ? "LOCAL PLAYER 2" : mode === "solo" ? "YOU" : mode === "host" ? (socket ? "CREWMATE" : "WAITING") : "YOU";
     el.depth.textContent = Math.floor(gameState.depth);
     el.gold.textContent = Math.floor(gameState.gold);
     el.caughtCount.textContent = gameState.caught;
@@ -1143,8 +1224,8 @@
     renderRooms();
     renderRepair();
     renderShop();
-    document.querySelector(".fisher-station").classList.toggle("station-inactive", localRole !== "fisher" && mode !== "local");
-    document.querySelector(".engineer-station").classList.toggle("station-inactive", localRole !== "engineer" && mode !== "local");
+    document.querySelector(".fisher-station").classList.toggle("station-inactive", localRole !== "fisher" && !isSharedControlMode());
+    document.querySelector(".engineer-station").classList.toggle("station-inactive", localRole !== "engineer" && !isSharedControlMode());
     el.fisherUpgradeSummary.textContent = `Harpoon winch ${roman(gameState.upgrades.harpoon + 1)}`;
     const fisherSub = document.createElement("span");
     fisherSub.textContent = "Reel-in bonus active";
@@ -1190,7 +1271,7 @@
       if (fish.stage === "bite" && event.code === "Space" && !event.repeat) {
         sendAction("cast", {}, "fisher");
       } else if (fish.stage === "hooked" && fish.type === "rhythm" && !event.repeat) {
-        const rhythmKey = wasdKeys[event.key.toLowerCase()] || (mode !== "local" && arrowKeys.includes(event.key) ? event.key : null);
+        const rhythmKey = wasdKeys[event.key.toLowerCase()] || (!isSharedControlMode() && arrowKeys.includes(event.key) ? event.key : null);
         if (rhythmKey) sendAction("rhythm", { key: rhythmKey }, "fisher");
       }
       if (fish.stage === "hooked" && fish.type === "aim") {
@@ -1198,7 +1279,7 @@
           ArrowUp: [0, -.02], w: [0, -.02], ArrowDown: [0, .02], s: [0, .02],
           ArrowLeft: [-.02, 0], a: [-.02, 0], ArrowRight: [.02, 0], d: [.02, 0]
         };
-        const move = mode === "local" ? aimMoves[event.key.toLowerCase()] : aimMoves[event.key] || aimMoves[event.key.toLowerCase()];
+        const move = isSharedControlMode() ? aimMoves[event.key.toLowerCase()] : aimMoves[event.key] || aimMoves[event.key.toLowerCase()];
         if (move && Date.now() - lastAimSent > 45) {
           lastAimSent = Date.now();
           sendAction("aimMove", { dx: move[0], dy: move[1] }, "fisher");
@@ -1220,7 +1301,7 @@
   }
 
   function handleOceanPointer(event) {
-    if (mode === "local" || !canFisherAct() || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
+    if (isSharedControlMode() || !canFisherAct() || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
     if (Date.now() - lastAimSent < 45) return;
     lastAimSent = Date.now();
     const rect = el.oceanScene.getBoundingClientRect();
@@ -1291,6 +1372,7 @@
       }
     });
     el.localButton.addEventListener("click", () => enterGame("local", "fisher", initialState()));
+    el.soloButton.addEventListener("click", () => enterGame("solo", "fisher", initialState()));
     el.leaveButton.addEventListener("click", returnToLobby);
     $("#restart-button").addEventListener("click", () => sendAction("restart"));
     el.fishingActions.addEventListener("click", handleFishingClick);

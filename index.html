@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071b2b">
+  <meta name="theme-color" content="#030809">
   <title>Can't Catch Me — Deep Sea Co-op</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="relay-config.js"></script>
   <script src="assets/manifest.js"></script>
   <script defer src="game.js"></script>
 </head>
@@ -14,58 +14,94 @@
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Can't Catch Me home">
-        <span class="brand-mark" aria-hidden="true">⌁</span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M7 25h34l-7 9H17l-10-9Z"/><path d="M18 25v-7h10l6 7M14 37h20"/><circle cx="27" cy="27" r="2"/></svg></span>
         <span>CAN'T CATCH ME <small>DEEP SEA CO-OP</small></span>
       </a>
       <div class="top-status"><span class="status-dot"></span><span id="connection-label">Crew not connected</span></div>
     </header>
 
     <section class="lobby" id="lobby">
-      <div class="lobby-copy">
-        <p class="eyebrow">DEEP SEA SURVIVAL · TWO PLAYER CO-OP</p>
-        <h1>CAN'T CATCH<br><span>ME.</span></h1>
-        <p class="intro">Take the sub below the safe line. One of you hunts the deep; the other keeps the boat alive.</p>
-        <div class="menu-scene" aria-hidden="true">
-          <span class="sonar-ring sonar-ring-one"></span><span class="sonar-ring sonar-ring-two"></span>
-          <span class="menu-submarine">◀━</span><span class="menu-fish">⌁</span>
-          <span class="scene-depth">DEPTH  ·  3,200 M</span><span class="scene-warning">SONAR CONTACT</span>
+      <nav class="menu-nav" id="menu-tabs" role="tablist" aria-label="Main menu">
+        <div class="nav-insignia" aria-hidden="true">
+          <svg viewBox="0 0 48 48"><path d="M7 25h34l-7 9H17l-10-9Z"/><path d="M18 25v-7h10l6 7M14 37h20M12 41h24"/><circle cx="27" cy="27" r="2"/></svg>
         </div>
-        <div class="role-preview">
-          <div class="preview-card fisher-preview"><span class="preview-icon">⌁</span><div><b>FISHER</b><small>Track unusual life and bring in the catch.</small></div></div>
-          <div class="preview-card engineer-preview"><span class="preview-icon">✳</span><div><b>REPAIRER</b><small>Keep the pressure up and the hull sealed.</small></div></div>
+        <p class="nav-caption">DEEP SEA / MENU</p>
+        <button class="menu-tab active" id="menu-play-tab" type="button" role="tab" aria-selected="true" aria-controls="menu-play" data-menu="menu-play">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg><span>Play</span><small>01</small>
+        </button>
+        <button class="menu-tab" id="menu-info-tab" type="button" role="tab" aria-selected="false" aria-controls="menu-info" data-menu="menu-info">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><span>Info</span><small>02</small>
+        </button>
+        <button class="menu-tab" id="menu-controls-tab" type="button" role="tab" aria-selected="false" aria-controls="menu-controls" data-menu="menu-controls">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h4m-2-2v4m4-1h.01M16 9h.01M15 13h.01M18 13h.01M9 15h6"/></svg><span>Controls</span><small>03</small>
+        </button>
+        <div class="nav-status"><span class="status-dot"></span><span>ONLINE CHANNEL</span></div>
+      </nav>
+      <div class="lobby-main">
+        <div class="lobby-panel">
+          <section class="menu-page" id="menu-play" role="tabpanel" aria-labelledby="menu-play-tab">
+            <div class="panel-heading"><span class="eyebrow">MISSION SELECT</span><span class="panel-index">EXPEDITION 001</span></div>
+            <p class="menu-prompt">CHOOSE HOW YOU'LL DIVE</p>
+            <div class="play-mode online-mode">
+              <div class="mode-heading">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2.5 19c.5-3 2.4-4.5 5.5-4.5m8 0c3.1 0 5 1.5 5.5 4.5M11 12h2"/></svg>
+                <div><b>Online crew</b><small>Play together from two devices</small></div>
+              </div>
+              <button class="primary-button" id="host-button"><span>Host a voyage</span><span aria-hidden="true">↗</span></button>
+              <div class="room-display hidden" id="room-display">
+                <span class="field-label">SHARE THIS ROOM CODE</span>
+                <div class="room-code-row"><code id="room-code">------</code><button class="copy-button" id="copy-code" aria-label="Copy room code">COPY</button></div>
+                <p class="field-hint">Your crewmate enters this code below.</p>
+              </div>
+              <div class="divider"><span>OR JOIN A CREW</span></div>
+              <form class="join-form" id="join-form">
+                <label class="field-label" for="join-code">ROOM CODE</label>
+                <div class="join-row"><input id="join-code" maxlength="6" autocomplete="off" placeholder="ABC234" aria-label="Room code"><button class="secondary-button" type="submit">Join <span aria-hidden="true">→</span></button></div>
+              </form>
+            </div>
+            <div class="local-mode-options">
+              <button class="mode-card" id="local-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M8 10h4m-2-2v4m6-2h.01m3 0h.01"/></svg>
+                <span><b>Local co-op</b><small>Two players · one device</small></span><span class="mode-arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="mode-card" id="solo-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.4-5 2.9-7.5 7.5-7.5s7.1 2.5 7.5 7.5"/></svg>
+                <span><b>Solo dive</b><small>Run both stations yourself</small></span><span class="mode-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </section>
+          <section class="menu-page info-page hidden" id="menu-info" role="tabpanel" aria-labelledby="menu-info-tab">
+            <div class="panel-heading"><span class="eyebrow">FIELD BRIEFING</span><span class="panel-index">PELAGIC PASSAGE</span></div>
+            <h2>One sub.<br>Two jobs.<br><span>No safe water.</span></h2>
+            <p>Take the submarine below the safe line. Track strange life, bring in the catch, and keep the pressure from winning.</p>
+            <div class="info-roles">
+              <div><span class="info-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v7a5 5 0 0 0 10 0V4m-5 7v3a5 5 0 0 0 5 5h4m-3-3 3 3-3 3"/></svg></span><span><b>Fisher</b><small>Find, hook, and reel in deep-sea species.</small></span></div>
+              <div><span class="info-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6 18 2l4 4-4 4M20 8l-9 9m-3-2-5 5 3 3 5-5m1-4-4-4 4-4 4 4"/></svg></span><span><b>Repairer</b><small>Patch systems and keep the crew moving.</small></span></div>
+            </div>
+            <p class="info-footnote">Sell each haul at a checkpoint to fund upgrades. A breached hull ends the expedition.</p>
+          </section>
+          <section class="menu-page controls-page hidden" id="menu-controls" role="tabpanel" aria-labelledby="menu-controls-tab">
+            <div class="panel-heading"><span class="eyebrow">CREW MANUAL</span><span class="panel-index">INPUT GUIDE</span></div>
+            <div class="control-card"><span class="control-icon">WASD</span><div><b>FISHER</b><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> steer · <kbd>SPACE</kbd> cast / reel</p></div></div>
+            <div class="control-card"><span class="control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m-9-9h18M5.6 5.6l12.8 12.8m0-12.8L5.6 18.4"/></svg></span><div><b>REPAIRER</b><p><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> alignment / engine · mouse to select and repair</p></div></div>
+            <p class="controls-note">Online crew split the stations. Local co-op uses two players on one device; solo lets one player handle both.</p>
+          </section>
+          <p class="connection-message" id="connection-message" role="status"></p>
         </div>
-      </div>
-      <div class="lobby-panel">
-        <div class="panel-heading"><span class="eyebrow">SUBMARINE CONTROL</span><span class="panel-index">SYSTEM READY</span></div>
-        <nav class="menu-tabs" id="menu-tabs" role="tablist" aria-label="Main menu">
-          <button class="menu-tab active" id="menu-play-tab" type="button" role="tab" aria-selected="true" aria-controls="menu-play" data-menu="menu-play">PLAY</button>
-          <button class="menu-tab" id="menu-controls-tab" type="button" role="tab" aria-selected="false" aria-controls="menu-controls" data-menu="menu-controls">CONTROLS</button>
-        </nav>
-        <section class="menu-page" id="menu-play" role="tabpanel" aria-labelledby="menu-play-tab">
-          <p class="menu-prompt">CHOOSE YOUR CREW SETUP</p>
-          <button class="primary-button" id="host-button"><span>Host online voyage</span><span aria-hidden="true">↗</span></button>
-          <div class="room-display hidden" id="room-display">
-            <span class="field-label">SHARE THIS ROOM CODE</span>
-            <div class="room-code-row"><code id="room-code">------</code><button class="copy-button" id="copy-code" aria-label="Copy room code">COPY</button></div>
-            <p class="field-hint">Your crewmate enters this code under Join voyage.</p>
+        <aside class="menu-hero">
+          <p class="eyebrow">DEEP SEA SURVIVAL · CO-OP / SOLO</p>
+          <h1>CAN'T CATCH<br><span>ME.</span></h1>
+          <p class="intro">The deeper you go, the stranger the life — and the thinner the hull.</p>
+          <div class="menu-scene" aria-hidden="true">
+            <span class="sonar-ring sonar-ring-one"></span><span class="sonar-ring sonar-ring-two"></span>
+            <svg class="menu-submarine" viewBox="0 0 100 48"><path d="M8 24h78l-12 12H27L8 24Z"/><path d="M35 24V13h25l13 11M20 40h55M30 44h36"/><circle cx="55" cy="27" r="3"/></svg>
+            <svg class="menu-fish" viewBox="0 0 48 26"><path d="M4 13c9-12 26-12 35 0-9 12-26 12-35 0Zm0 0L1 4v18l3-9Z"/><circle cx="31" cy="10" r="1"/></svg>
+            <span class="scene-depth">DEPTH · 3,200 M</span><span class="scene-warning">SONAR CONTACT</span>
           </div>
-          <div class="divider"><span>JOIN AN ONLINE CREW</span></div>
-          <form class="join-form" id="join-form">
-            <label class="field-label" for="join-code">6-CHARACTER ROOM CODE</label>
-            <div class="join-row"><input id="join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Room code"><button class="secondary-button" type="submit">Join <span aria-hidden="true">→</span></button></div>
-          </form>
-          <button class="practice-link" id="practice-button"><span><b>Local co-op</b><small>Fisher: WASD + Space · Repairer: arrows + mouse</small></span><span aria-hidden="true">▶</span></button>
-        </section>
-        <section class="menu-page controls-page hidden" id="menu-controls" role="tabpanel" aria-labelledby="menu-controls-tab">
-          <p class="menu-prompt">TWO JOBS. ONE SHARED SUB.</p>
-          <div class="control-card"><span class="preview-icon">⌁</span><div><b>FISHER</b><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> steer · <kbd>SPACE</kbd> cast / reel</p></div></div>
-          <div class="control-card engineer-control"><span class="preview-icon">✳</span><div><b>REPAIRER</b><p><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> balance / restart · mouse to select and repair</p></div></div>
-          <p class="controls-note">In online play, each crewmate controls one station. Local co-op uses the keyboard and mouse together.</p>
-        </section>
-        <div class="menu-footer"><span>NO ACCOUNT · NO SAFE WATER</span><span>DEPTH IS SHARED</span></div>
-        <p class="connection-message" id="connection-message" role="status"></p>
+          <div class="hero-caption"><span>PELAGIC PASSAGE</span><span>EXPEDITION 001</span></div>
+        </aside>
       </div>
-      <div class="lobby-footer"><span>PELAGIC PASSAGE  ·  EXPEDITION 001</span><span>SONAR ACTIVE  ·  CREW STANDING BY</span></div>
+      <div class="lobby-footer"><span>NO ACCOUNT · NO SAFE WATER</span><span>DEPTH IS SHARED</span></div>
     </section>
 
     <section class="game hidden" id="game">
@@ -76,13 +112,13 @@
 
       <section class="voyage-strip" aria-label="Voyage status">
         <div class="stat"><span>DEPTH</span><b><span id="depth">0</span><small> m</small></b></div>
-        <div class="stat"><span>CREW GOLD</span><b><span id="gold">0</span><small> ◈</small></b></div>
+        <div class="stat"><span>CREW GOLD</span><b><span id="gold">0</span><small class="coin-mark" aria-label="gold">G</small></b></div>
         <div class="stat"><span>FISH CAUGHT</span><b id="caught-count">0</b></div>
         <div class="checkpoint-stat"><div><span>NEXT CHECKPOINT</span><b><span id="checkpoint-distance">250</span> m</b></div><div class="meter"><i id="progress-meter"></i></div></div>
       </section>
 
       <section class="sub-status" aria-label="Submarine systems">
-        <div class="sub-art"><img id="sub-image" alt="" hidden><span class="sub-fallback" aria-hidden="true">◉</span></div>
+        <div class="sub-art"><img id="sub-image" alt="" hidden><span class="sub-fallback" aria-hidden="true"><svg viewBox="0 0 100 48"><path d="M8 24h78l-12 12H27L8 24Z"/><path d="M35 24V13h25l13 11M20 40h55M30 44h36"/><circle cx="55" cy="27" r="3"/></svg></span></div>
         <div class="system-meter"><div class="system-label"><span>HULL</span><b id="hull-value">100%</b></div><div class="meter"><i id="hull-meter"></i></div></div>
         <div class="system-meter"><div class="system-label"><span>FUEL</span><b id="fuel-value">100%</b></div><div class="meter"><i id="fuel-meter"></i></div></div>
         <div class="system-meter"><div class="system-label"><span>BILGE WATER</span><b id="water-value">0%</b></div><div class="meter water-meter"><i id="water-meter"></i></div></div>
@@ -91,7 +127,7 @@
 
       <div class="stations">
         <section class="station fisher-station" data-station="fisher">
-          <header class="station-header"><div class="station-title"><span class="station-icon">⌁</span><div><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
+          <header class="station-header"><div class="station-title"><span class="station-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v7a5 5 0 0 0 10 0V4m-5 7v3a5 5 0 0 0 5 5h4m-3-3 3 3-3 3"/></svg></span><div><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
           <div class="ocean-scene">
             <img id="fish-image" alt="" hidden>
             <div class="ocean-silhouette" aria-hidden="true"><span>◉</span></div>
@@ -105,7 +141,7 @@
         </section>
 
         <section class="station engineer-station" data-station="engineer">
-          <header class="station-header"><div class="station-title"><span class="station-icon">✳</span><div><h3>Sub systems</h3></div></div><span class="station-owner" id="engineer-owner">ENGINEER</span></header>
+          <header class="station-header"><div class="station-title"><span class="station-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4-4 4 4-4 4m2-2-9 9m-3-2-5 5 3 3 5-5m1-4-4-4 4-4 4 4"/></svg></span><div><h3>Sub systems</h3></div></div><span class="station-owner" id="engineer-owner">ENGINEER</span></header>
           <div class="engineer-board">
             <div class="mission-list" id="mission-list"></div>
             <div class="repair-panel hidden" id="repair-panel">

@@ -11,4 +11,4 @@ Fish keys are `trash`, `common`, `uncommon`, `rare`, `epic`, `legendary`, `mythi
 
 `manifest.js` is the single artwork registry. Each entry has a relative `src`, recommended `width` and `height`, and a CSS `fit` value. Add future image slots there, then reference their keys in `game.js` where they are displayed. Missing images are hidden automatically, leaving the built-in fallback art in place. Avoid editing the game rules to import replacement art.
 
-The game is plain HTML, CSS, and JavaScript. Keep new gameplay systems in `game.js`, presentation in `styles.css`, and markup in `index.html`; no build step or package install is required. The online room connection uses PeerJS's public signaling service and requires an internet connection.
+The browser game is plain HTML, CSS, and JavaScript. Keep gameplay in `game.js`, presentation in `styles.css`, and markup in `index.html`; the browser client needs no build step. Online play uses the separate Node WebSocket relay in `relay/`. Deploy it with the repository's `render.yaml` and set its secure WebSocket URL in `relay-config.js`.
