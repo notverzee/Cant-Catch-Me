@@ -41,4 +41,4 @@ Liam's Exercise Book Rewrite:
 
 --------
 
-- Selling caught fish gives the crew cash, which they could use at checkpoints to upgrade one of the 3 cards that pop up after catching a certain number of fish. These upgrades could assist in increasing how strong parts of the ship could be, reducing need to repair at times, possibly increasing bait to keep fish on longer or pure to attract more fish, etc
+- Selling caught fish gives the crew cash, which they could use after a certain amount of time to upgrade any certain upgradeable things after catching a certain number of fish. These upgrades could assist in increasing how strong parts of the ship could be, reducing need to repair at times, possibly increasing bait to keep fish on longer or pure to attract more fish, etc
