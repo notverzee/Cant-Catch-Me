@@ -1,0 +1,44 @@
+# BRAINSTORMING
+
+Liam's Exercise Book Rewrite:
+
+• Submarine & Fishing Game
+  - 2 Players play this game, one who's fishing uses WASD & space, and the repairer uses the arrow keys and moussepad/left click.
+
+--------
+
+- The repairer has to repair parts of the submarine as the exhibition goes on. Some issues they may face include:
+
+   • Repeat a given sequence (Like a 3x3 light up puzzle where you have to memorize the pattern)
+
+   • Welding (Welding back together parts of the submarine)
+
+   • Valve Turning (Turning a valve after it goes loose)
+
+   • Realignment (Realligning the ship back to course)
+
+   • Replace Harpoon (The harpoon used to fish may get damaged and would need to be mechanically replaced)
+
+   • Rescrewing Bolts (Bolts will become loose and you'd have to screw them back in place)
+
+--------
+
+- The Fisher has to fish exotic sea animals while the repairer does their job. The Fisher will encounter several types of animals and everytime they appear, the Fisher will have to try and harpoon them to catch them. Some different events may happen when fishing, such as:
+
+   • Keeping Mouse In Circle (A drifting ball that would be seen as the mouse would have to be recentered at the fish using your arrow keys, and you'd have to keep it there until you catch it)
+
+   • Rhythm (You'd have to repeat and click the arrows that appear on screen in time to catch the fish)
+
+   • Spam Spacebar (Fisher would have to spam the spacebar in order to keep the fish)
+
+--------
+
+- Some occuring events may happen that conflict with the other player. For example:
+
+   • Failing to catch a fish (depending on the size) could cause the fish to hit the submarine, causing more damage to the shop that the repairer would have to contradict. These repairs could be worse and may have faster events than usual.
+
+   • Things left unrepaired would eventually affect the Fisher, like a valve left unfixed could cause smoke in the ship, affecting both the Fisher and the Repairer. The harpoon being unfixed would lead to the Fisher not being able to fish for a period of time aswell.
+
+--------
+
+- Selling caught fish gives the crew cash, which they could use at checkpoints to upgrade one of the 3 cards that pop up after catching a certain number of fish. These upgrades could assist in increasing how strong parts of the ship could be, reducing need to repair at times, possibly increasing bait to keep fish on longer or pure to attract more fish, etc
