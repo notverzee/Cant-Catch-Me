@@ -23,5 +23,17 @@ Fisher Mission include (reeling the fish in):
 Rhythm game.
 Keeping your cursor inside of a area for a certain amount of time.
 
+Fish can come in multiple rarity's that change their price like:
+Trash, 1 gold, 20% chance to spawn
+Common, 5 to 10 gold, 70% chance to spawn
+uncommon, 15 to 20 gold, 50% chance to spawn
+Rare, 30 to 40 gold, 40% chance to spawn
+Epic, 45 to 60 gold, 35% chance to spawn
+Legendary, 80 to 100 gold, 10% chance to spawn
+Mythic, 120 to 150 gold, 1% chance to spawn
+Treasure, 
+
 Shop/Checkpoints:
-There will be a sho
+There will be a checkpoint every ___ meters that has a shop.
+In the shop you will be able to sell your fish to get money and buy upgrades for the submarine.
+Each time you buy an upgrade it will make the price go up by 5% for next time you try to buy it.
