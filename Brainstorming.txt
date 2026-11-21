@@ -42,3 +42,5 @@ Liam's Exercise Book Rewrite:
 --------
 
 - Selling caught fish gives the crew cash, which they could use after a certain amount of time to upgrade any certain upgradeable things after catching a certain number of fish. These upgrades could assist in increasing how strong parts of the ship could be, reducing need to repair at times, possibly increasing bait to keep fish on longer or pure to attract more fish, etc
+
+- Price per upgrade increase by 5% every time you purchase one, and the upgrades get better and better as it goes on and the more upgrades you buy.
