@@ -1,0 +1,27 @@
+# BRAINSTORMING
+
+Ryan's Exercise Book Rewrite:
+
+Engineer Part of the game:
+Involves one of the players being "in" a submarine controlling and repairing it to keep the submarine in working order. 
+They would be using an interactive board with missions on it. But before doing the task they must navigate to the room that has the problem.
+
+Engineer Missions include:
+Realignment of the ship: Press between two buttons to either change its direction up or down. 
+Turn the valve: Turn a valve to stop gas from leaking.
+Weld the hull: Move a "welding torch" across the screen to follow a line to weld it shut.
+Pump The gas: use the pump to refuel the engine.
+Restart the engine: input a sequence of buttons to restart the engine.
+Pump The water: Pump the water out of the ship.
+Fix the bolts: little bolts appear around the screen that you have to hammer in to make sure they don't burst out. 
+
+Fisher Part of the game: 
+They will be fishing for rare fish in the deep ocean, using their harpoon gun they have to real in fish by completing mini games.
+They will sell these fish to buy upgrades for both the engineer and the Fisher at checkpoints. 
+
+Fisher Mission include (reeling the fish in):
+Rhythm game.
+Keeping your cursor inside of a area for a certain amount of time.
+
+Shop/Checkpoints:
+There will be a sho
