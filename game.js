@@ -2,7 +2,6 @@
   "use strict";
 
   const $ = (selector) => document.querySelector(selector);
-  const rooms = ["Bridge", "Engine room", "Pump room", "Hull", "Harpoon deck"];
   const roomByType = {
     sequence: "Bridge",
     alignment: "Bridge",
@@ -16,27 +15,29 @@
   };
   const issueInfo = {
     sequence: { name: "Signal relay", description: "Repeat the blinking light sequence.", instructions: "Memorize the short sequence, then tap the same tiles in order." },
-    alignment: { name: "Course realignment", description: "The submarine has drifted off course.", instructions: "Use the direction buttons to bring the compass needle back to center." },
+    alignment: { name: "Level the submarine", description: "A sudden current has pitched the boat off balance.", instructions: "Turn the submarine toward level. Follow the angle indicator and use the arrows to trim it back to center." },
     engine: { name: "Restart the engine", description: "The engine needs a manual restart.", instructions: "Follow the arrow sequence to bring the engine back online." },
-    fuel: { name: "Pump the fuel", description: "The engine fuel line needs priming.", instructions: "Keep pumping until the fuel line is pressurized." },
-    water: { name: "Pump out the water", description: "Water is collecting in the bilge.", instructions: "Pump repeatedly to clear the bilge before it rises further." },
+    fuel: { name: "Prime the fuel line", description: "The engine fuel line needs priming.", instructions: "Work the pump until the pressure gauge reaches the green zone and fuel flows again." },
+    water: { name: "Pump out the bilge", description: "Water is collecting in the bilge.", instructions: "Build pressure with repeated pump strokes to clear the bilge before it rises further." },
     valve: { name: "Turn the loose valve", description: "A gas valve has come loose.", instructions: "Click the valve repeatedly to tighten it and stop the leak." },
-    weld: { name: "Weld the hull", description: "A crack is spreading along the outer hull.", instructions: "Press and drag the torch from START to the far end of the seam." },
-    bolts: { name: "Rescrew the bolts", description: "Several hull bolts are working loose.", instructions: "Click each loose bolt to secure it before it bursts out." },
+    weld: { name: "Weld the hull", description: "A crack is spreading along the outer hull.", instructions: "Press and carefully drag the torch along the winding seam from START to FINISH." },
+    bolts: { name: "Rescrew the bolts", description: "Several hull bolts are working loose.", instructions: "Find and secure all six loose bolts scattered across the hull plate." },
     harpoon: { name: "Replace the harpoon", description: "The harpoon mechanism is damaged.", instructions: "Complete each step to replace and reload the harpoon." }
   };
   const rarityData = [
-    { key: "trash", name: "Trash", species: "Lost Boot", weight: 20, min: 1, max: 1, size: 1 },
-    { key: "common", name: "Common", species: "Lanternfish", weight: 70, min: 5, max: 10, size: 1 },
-    { key: "uncommon", name: "Uncommon", species: "Moon Jelly", weight: 50, min: 15, max: 20, size: 2 },
-    { key: "rare", name: "Rare", species: "Glassfin", weight: 40, min: 30, max: 40, size: 3 },
-    { key: "epic", name: "Epic", species: "Abyssal Ray", weight: 35, min: 45, max: 60, size: 4 },
-    { key: "legendary", name: "Legendary", species: "Gilded Angler", weight: 10, min: 80, max: 100, size: 5 },
-    { key: "mythic", name: "Mythic", species: "Void Leviathan", weight: 1, min: 120, max: 150, size: 6 },
-    { key: "treasure", name: "Treasure", species: "Sunken Treasure", weight: 0.005, min: 300, max: 300, size: 8 }
+    { key: "trash", name: "Trash", species: ["Lost Boot", "Crushed Can", "Old Teacup"], weight: 20, min: 1, max: 1, size: 1 },
+    { key: "common", name: "Common", species: ["Lanternfish", "Blue Sprat", "Silver Smelt"], weight: 70, min: 5, max: 10, size: 1 },
+    { key: "uncommon", name: "Uncommon", species: ["Moon Jelly", "Ribbon Eel", "Glass Shrimp"], weight: 50, min: 15, max: 20, size: 2 },
+    { key: "rare", name: "Rare", species: ["Glassfin", "Cobalt Seahorse", "Spotted Fangfish"], weight: 40, min: 30, max: 40, size: 3 },
+    { key: "epic", name: "Epic", species: ["Abyssal Ray", "Vampire Squid", "Frostscale Grouper"], weight: 35, min: 45, max: 60, size: 4 },
+    { key: "legendary", name: "Legendary", species: ["Gilded Angler", "Crownfin Sturgeon", "Emberback Turtle"], weight: 10, min: 80, max: 100, size: 5 },
+    { key: "mythic", name: "Mythic", species: ["Void Leviathan", "Starwhale", "Abyssal Dragonfish"], weight: 1, min: 120, max: 150, size: 6 },
+    { key: "treasure", name: "Treasure", species: ["Sunken Treasure"], weight: 0.005, min: 300, max: 300, size: 8 }
   ];
   const arrowKeys = ["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"];
   const arrowGlyph = { ArrowUp: "↑", ArrowRight: "→", ArrowDown: "↓", ArrowLeft: "←" };
+  const weldPath = [[0, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [1, .5]];
+  const boltSpots = [[.1, .18], [.32, .22], [.57, .15], [.84, .22], [.18, .72], [.43, .82], [.68, .68], [.89, .78], [.5, .47], [.27, .48]];
   const upgrades = {
     hull: { name: "Reinforced hull", description: "Take less damage from leaks and impacts.", base: 35 },
     harpoon: { name: "Harpoon winch", description: "Reel in catches with fewer pulls.", base: 30 },
@@ -84,7 +85,6 @@
     fishingActions: $("#fishing-actions"),
     fisherOwner: $("#fisher-owner"),
     engineerOwner: $("#engineer-owner"),
-    roomNav: $("#room-nav"),
     missionList: $("#mission-list"),
     repairPanel: $("#repair-panel"),
     repairRoomLabel: $("#repair-room-label"),
@@ -112,10 +112,10 @@
   let connection;
   let mode = "lobby";
   let localRole = "fisher";
-  let selectedRoom = "Bridge";
   let selectedIssueId = null;
   let repairSignature = "";
   let hostTimer = null;
+  let connectionTimer = null;
   let toastTimer = null;
   let weldPointerDown = false;
   let lastAimSent = 0;
@@ -202,16 +202,36 @@
     el.missionList.classList.remove("hidden");
   }
 
+  function clearConnectionTimer() {
+    clearTimeout(connectionTimer);
+    connectionTimer = null;
+  }
+
+  function failJoin(message) {
+    clearConnectionTimer();
+    const pendingConnection = connection;
+    const pendingPeer = peer;
+    connection = null;
+    peer = null;
+    if (pendingConnection) pendingConnection.close();
+    if (pendingPeer) pendingPeer.destroy();
+    el.joinForm.querySelector("button").disabled = false;
+    setConnectionLabel("Crew not connected");
+    showMessage(message, true);
+  }
+
   function enterGame(nextMode, role, state) {
+    clearConnectionTimer();
     mode = nextMode;
     localRole = role;
     gameState = state || initialState();
     el.lobby.classList.add("hidden");
     el.game.classList.remove("hidden");
+    $(".shell").classList.add("in-game");
     el.roleBadge.textContent = role.toUpperCase();
     el.switchRole.classList.toggle("hidden", mode !== "practice");
     el.netStatus.textContent = mode === "practice" ? "Solo practice · both stations available" : mode === "host" ? "Room open · waiting for your crewmate" : "Online crew connected";
-    selectedRoom = "Bridge";
+    if (mode === "client") setConnectionLabel("Crew connected", true);
     selectedIssueId = null;
     repairSignature = "";
     if (mode === "host" || mode === "practice") startHostTimer();
@@ -220,6 +240,7 @@
 
   function returnToLobby() {
     clearInterval(hostTimer);
+    clearConnectionTimer();
     hostTimer = null;
     if (connection) {
       connection.close();
@@ -232,6 +253,7 @@
     mode = "lobby";
     gameState = null;
     el.game.classList.add("hidden");
+    $(".shell").classList.remove("in-game");
     el.lobby.classList.remove("hidden");
     el.roomDisplay.classList.add("hidden");
     el.hostButton.disabled = false;
@@ -301,33 +323,45 @@
     }
     el.joinForm.querySelector("button").disabled = true;
     showMessage("Connecting to your crewmate…");
+    setConnectionLabel("Connecting to crew");
+    clearConnectionTimer();
+    connectionTimer = setTimeout(() => {
+      if (mode === "lobby") failJoin("Connection timed out. Check the room code, your internet connection, and that the host is still waiting.");
+    }, 15000);
     peer = new window.Peer();
     peer.on("open", () => {
+      clearConnectionTimer();
+      connectionTimer = setTimeout(() => {
+        if (mode === "lobby") failJoin("Connected to the room service, but the game did not respond. Ask the host to reopen the room and try again.");
+      }, 15000);
       connection = peer.connect(`ccm-${normalized}`, { reliable: true });
       connection.on("open", () => {
-        setConnectionLabel("Crew connected", true);
-        el.netStatus.textContent = "Online crew connected";
+        setConnectionLabel("Syncing crew");
+        showMessage("Connected — syncing the voyage…");
       });
       connection.on("data", (message) => receiveMessage(message, "engineer"));
       connection.on("close", handleConnectionClose);
-      connection.on("error", () => showMessage("Could not reach that room. Check the code and try again.", true));
+      connection.on("error", () => {
+        if (mode === "lobby") failJoin("Could not reach that room. Check the code and try again.");
+        else toast("The crew connection had a problem.", true);
+      });
     });
     peer.on("error", (error) => {
-      el.joinForm.querySelector("button").disabled = false;
-      showMessage(error.type === "peer-unavailable" ? "That room is not open. Check the code and ask your friend to reopen it." : `Could not connect (${error.type || "network error"}).`, true);
-      if (peer) {
-        peer.destroy();
-        peer = null;
-      }
+      const message = error.type === "peer-unavailable" ? "That room is not open. Check the code and ask your friend to reopen it." : `Could not connect (${error.type || "network error"}). Check your connection and try again.`;
+      if (mode === "lobby") failJoin(message);
+      else toast(message, true);
     });
   }
 
   function handleConnectionClose() {
+    if (mode === "lobby" && !connection && !peer) return;
     connection = null;
     setConnectionLabel("Crew disconnected");
     if (mode === "client") {
       el.netStatus.textContent = "Crew connection lost";
       toast("The connection to the host was lost.", true);
+    } else if (mode === "lobby") {
+      failJoin("The host closed the connection before the voyage synced. Check the code and try again.");
     } else if (mode === "host") {
       el.netStatus.textContent = "Crew disconnected · waiting for a new connection";
       toast("Your crewmate disconnected.", true);
@@ -340,6 +374,7 @@
     if (message.type === "action" && (mode === "host" || mode === "practice")) {
       applyAction(message.action, message.data || {}, senderRole);
     } else if (message.type === "state" && mode !== "host" && message.state && typeof message.state === "object") {
+      clearConnectionTimer();
       if (mode === "lobby") enterGame("client", "engineer", message.state);
       else gameState = message.state;
       render();
@@ -406,6 +441,7 @@
     gameState.encounter = {
       id: `${Date.now()}-${Math.random()}`,
       rarity: rarity.key,
+      species: rarity.species[Math.floor(Math.random() * rarity.species.length)],
       type,
       stage: "bite",
       timeLeft: 12,
@@ -434,9 +470,10 @@
       secondsLeft: 48 + Math.floor(Math.random() * 23),
       step: 0,
       progress: 0,
-      direction,
+      angle: type === "alignment" ? Math.sign(direction) * (25 + Math.floor(Math.random() * 36)) : 0,
       pattern: type === "sequence" ? Array.from({ length: 5 }, () => Math.floor(Math.random() * 9)) : type === "engine" ? Array.from({ length: 4 }, () => arrowKeys[Math.floor(Math.random() * 4)]) : [],
       bolts: [],
+      boltPositions: type === "bolts" ? randomBoltPositions() : [],
       expired: false
     };
     gameState.issues.push(issue);
@@ -506,7 +543,7 @@
     if (!gameState.encounter) return;
     const rarity = rarityByKey[gameState.encounter.rarity];
     const value = rarity.min + Math.floor(Math.random() * (rarity.max - rarity.min + 1));
-    gameState.inventory.push({ rarity: rarity.key, value });
+    gameState.inventory.push({ rarity: rarity.key, species: gameState.encounter.species, value });
     gameState.caught += 1;
     gameState.encounter = null;
     sendNotice(`${rarity.name} catch secured! Sell it at the next checkpoint.`);
@@ -541,7 +578,6 @@
     if (action === "restart") {
       if (!gameState.ended) return;
       gameState = initialState();
-      selectedRoom = "Bridge";
       resetRepairPanel();
       sendNotice("New voyage underway. Good luck, crew!");
     } else if (action === "cast" && role === "fisher") {
@@ -582,7 +618,7 @@
       }
     } else if (action === "repair" && role === "engineer") {
       const issue = issueById(data.id);
-      if (issue && issue.room === data.room && (mode === "host" && role !== localRole || issue.room === selectedRoom)) applyRepair(issue, data);
+      if (issue && issue.room === data.room && (mode === "host" && role !== localRole || selectedIssueId === issue.id)) applyRepair(issue, data);
     } else if (action === "sell" && role === "engineer") {
       if (gameState.checkpointOpen && gameState.inventory.length) {
         const total = gameState.inventory.reduce((sum, fish) => sum + fish.value, 0);
@@ -623,20 +659,24 @@
       }
     } else if (issue.type === "alignment") {
       if (data.mode !== "align" || ![-1, 1].includes(data.direction)) return;
-      if (issue.direction !== 0 && Math.sign(issue.direction) === data.direction) issue.direction -= data.direction;
-      if (issue.direction === 0) finish();
+      if (Math.abs(issue.angle) <= 15 && Math.sign(issue.angle) === data.direction) {
+        issue.angle = 0;
+        finish();
+      } else {
+        issue.angle = Math.max(-90, Math.min(90, issue.angle - data.direction * (Math.sign(issue.angle) === data.direction ? 15 : 10)));
+      }
     } else if (issue.type === "valve") {
       if (data.mode !== "turn") return;
       issue.progress = Math.min(8, issue.progress + 1);
       if (issue.progress >= 8) finish();
     } else if (issue.type === "weld") {
       if (data.mode !== "weld" || !Number.isFinite(data.value)) return;
-      issue.progress = Math.max(issue.progress, Math.min(1, Math.max(0, data.value)));
-      if (issue.progress >= .94) finish();
+      issue.progress = Math.max(issue.progress, Math.min(issue.progress + .04, Math.min(1, Math.max(0, data.value))));
+      if (issue.progress >= .99) finish();
     } else if (issue.type === "bolts") {
-      if (data.mode !== "bolt" || !Number.isInteger(data.index) || data.index < 0 || data.index > 3) return;
+      if (data.mode !== "bolt" || !Number.isInteger(data.index) || data.index < 0 || data.index > 5) return;
       if (!issue.bolts.includes(data.index)) issue.bolts.push(data.index);
-      if (issue.bolts.length >= 4) finish();
+      if (issue.bolts.length >= 6) finish();
     } else if (issue.type === "harpoon") {
       if (data.mode !== "harpoon" || data.step !== issue.step) return;
       issue.step += 1;
@@ -683,6 +723,15 @@
     return button;
   }
 
+  function randomBoltPositions() {
+    const positions = [...boltSpots];
+    for (let index = positions.length - 1; index > 0; index--) {
+      const swap = Math.floor(Math.random() * (index + 1));
+      [positions[index], positions[swap]] = [positions[swap], positions[index]];
+    }
+    return positions.slice(0, 6);
+  }
+
   function renderFishing() {
     const fish = gameState.encounter;
     const scene = el.oceanScene;
@@ -707,7 +756,7 @@
     const rarity = rarityByKey[fish.rarity] || rarityByKey.common;
     el.encounterRarity.textContent = rarity.name.toUpperCase();
     el.encounterRarity.style.color = fish.rarity === "treasure" || fish.rarity === "mythic" ? "var(--amber)" : "";
-    el.encounterTitle.textContent = fish.stage === "bite" ? "Something is on the line!" : rarity.species;
+    el.encounterTitle.textContent = fish.stage === "bite" ? "Something is on the line!" : fish.species || rarity.species[0];
     el.encounterCopy.textContent = fish.stage === "bite" ? "Get ready to hook it before it slips away." : `Keep it on the line · ${Math.max(0, fish.timeLeft)}s`;
     const asset = window.CCM_ASSETS && window.CCM_ASSETS.fish && window.CCM_ASSETS.fish[fish.rarity];
     setImage(el.fishImage, $(".ocean-silhouette"), asset);
@@ -763,17 +812,12 @@
   }
 
   function renderRooms() {
-    el.roomNav.replaceChildren();
-    for (const room of rooms) {
-      const button = makeButton(room, { room }, "room-button");
-      if (room === selectedRoom) button.classList.add("active");
-      const count = gameState.issues.filter((issue) => issue.room === room).length;
-      if (count) button.textContent = `${room} · ${count}`;
-      el.roomNav.append(button);
-    }
-    const issues = gameState.issues.filter((issue) => issue.room === selectedRoom);
     el.missionList.replaceChildren();
-    if (!issues.length) {
+    const heading = document.createElement("div");
+    heading.className = "mission-list-heading";
+    heading.textContent = gameState.issues.length ? `ACTIVE CALLS · ${gameState.issues.length}` : "SYSTEMS";
+    el.missionList.append(heading);
+    if (!gameState.issues.length) {
       const empty = document.createElement("div");
       empty.className = "mission-empty";
       const title = document.createElement("b");
@@ -785,16 +829,20 @@
       resetRepairPanel();
       return;
     }
+    const issues = [...gameState.issues].sort((a, b) => a.secondsLeft - b.secondsLeft);
     for (const issue of issues) {
       const row = document.createElement("div");
-      row.className = "mission-row";
+      row.className = `mission-row${selectedIssueId === issue.id ? " selected" : ""}`;
       const details = document.createElement("div");
       details.className = "mission-details";
+      const location = document.createElement("span");
+      location.className = "mission-room";
+      location.textContent = issue.room;
       const name = document.createElement("b");
       name.textContent = issueInfo[issue.type].name;
       const desc = document.createElement("span");
       desc.textContent = issueInfo[issue.type].description;
-      details.append(name, desc);
+      details.append(location, name, desc);
       const open = makeButton("Repair", { issue: issue.id }, "action-button");
       open.disabled = localRole !== "engineer" || gameState.ended;
       row.append(details, open);
@@ -812,12 +860,11 @@
 
   function renderRepair() {
     const issue = selectedIssueId && issueById(selectedIssueId);
-    if (!issue || issue.room !== selectedRoom) {
+    if (!issue) {
       resetRepairPanel();
       return;
     }
     el.repairPanel.classList.remove("hidden");
-    el.missionList.classList.add("hidden");
     el.repairRoomLabel.textContent = issue.room.toUpperCase();
     el.repairTitle.textContent = issueInfo[issue.type].name;
     el.repairInstructions.textContent = issueInfo[issue.type].instructions;
@@ -839,12 +886,23 @@
         }, 2400);
       } else if (issue.type === "alignment") {
         const controls = document.createElement("div");
-        controls.className = "alignment-controls";
-        controls.append(
-          makeButton("↓", { repair: "align", direction: "-1" }),
-          makeButton(issue.direction < 0 ? "↓" : issue.direction > 0 ? "↑" : "●", {}, "compass-mark"),
-          makeButton("↑", { repair: "align", direction: "1" })
-        );
+        controls.className = "alignment-console";
+        const dial = document.createElement("div");
+        dial.className = "alignment-dial";
+        const submarine = document.createElement("div");
+        submarine.className = "alignment-sub";
+        submarine.setAttribute("role", "img");
+        submarine.setAttribute("aria-label", "Submarine angle indicator");
+        submarine.innerHTML = '<svg viewBox="0 0 120 48" aria-hidden="true"><path d="M16 28h84l-9 10H27zM41 28l7-12h25l9 12M53 16V9h12v7" /><circle cx="40" cy="31" r="3"/><circle cx="58" cy="31" r="3"/><circle cx="76" cy="31" r="3"/></svg>';
+        const level = document.createElement("span");
+        level.className = "alignment-level";
+        level.textContent = "LEVEL";
+        dial.append(submarine, level);
+        const left = makeButton("↶", { repair: "align", direction: "-1" }, "alignment-button");
+        left.setAttribute("aria-label", "Trim left");
+        const right = makeButton("↷", { repair: "align", direction: "1" }, "alignment-button");
+        right.setAttribute("aria-label", "Trim right");
+        controls.append(left, dial, right);
         el.repairChallenge.append(controls);
       } else if (issue.type === "engine") {
         const preview = document.createElement("div");
@@ -863,35 +921,69 @@
         track.className = "weld-track";
         track.dataset.repair = "weld";
         track.dataset.id = issue.id;
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 1000 300");
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute("aria-hidden", "true");
+        const seam = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        seam.setAttribute("points", weldPath.map(([x, y]) => `${x * 1000},${y * 300}`).join(" "));
+        svg.append(seam);
         const dot = document.createElement("span");
         dot.className = "weld-dot";
-        track.append(dot);
+        const start = document.createElement("span");
+        start.className = "weld-label weld-start";
+        start.textContent = "START";
+        const finish = document.createElement("span");
+        finish.className = "weld-label weld-finish";
+        finish.textContent = "FINISH";
+        track.append(svg, dot, start, finish);
         el.repairChallenge.append(track);
       } else if (issue.type === "bolts") {
-        for (let index = 0; index < 4; index++) {
-          const bolt = makeButton("✳", { repair: "bolt", index }, "mini-button bolt-button");
+        const field = document.createElement("div");
+        field.className = "bolt-field";
+        for (let index = 0; index < 6; index++) {
+          const bolt = makeButton("✣", { repair: "bolt", index }, "mini-button bolt-button");
+          const [x, y] = issue.boltPositions[index];
+          bolt.style.left = `${x * 100}%`;
+          bolt.style.top = `${y * 100}%`;
           bolt.title = `Secure bolt ${index + 1}`;
-          el.repairChallenge.append(bolt);
+          field.append(bolt);
         }
+        el.repairChallenge.append(field);
       } else if (issue.type === "harpoon") {
         const steps = ["Remove", "Replace", "Reload"];
         for (let index = 0; index < steps.length; index++) el.repairChallenge.append(makeButton(steps[index], { repair: "harpoon", step: index }));
       } else {
-        el.repairChallenge.append(makeButton(issue.type === "fuel" ? "⛽  PUMP FUEL" : "◌  PUMP WATER", { repair: "pump" }, "mini-button pump-button"));
+        const rig = document.createElement("div");
+        rig.className = "pump-rig";
+        const gauge = document.createElement("div");
+        gauge.className = "pump-gauge";
+        const gaugeFill = document.createElement("i");
+        gauge.append(gaugeFill);
+        const reading = document.createElement("span");
+        reading.className = "pump-reading";
+        reading.textContent = "0 / 9 strokes";
+        const pump = makeButton(issue.type === "fuel" ? "↓  PUMP FUEL" : "↓  PUMP BILGE", { repair: "pump" }, "mini-button pump-button");
+        rig.append(gauge, reading, pump);
+        el.repairChallenge.append(rig);
       }
       const track = document.createElement("div");
       track.className = "progress-track repair-progress";
       track.innerHTML = "<i></i>";
-      el.repairChallenge.append(track);
+      if (issue.type !== "fuel" && issue.type !== "water") el.repairChallenge.append(track);
     }
     const progress = el.repairChallenge.querySelector(".repair-progress i");
     if (progress) {
-      const max = issue.type === "sequence" ? issue.pattern.length : issue.type === "engine" ? issue.pattern.length : issue.type === "valve" ? 8 : issue.type === "bolts" ? 4 : issue.type === "harpoon" ? 3 : issue.type === "weld" ? 1 : issue.type === "alignment" ? 2 : 9;
-      const value = issue.type === "sequence" || issue.type === "engine" || issue.type === "harpoon" ? issue.step : issue.type === "bolts" ? issue.bolts.length : issue.type === "alignment" ? 2 - Math.abs(issue.direction) : issue.progress;
+      const max = issue.type === "sequence" ? issue.pattern.length : issue.type === "engine" ? issue.pattern.length : issue.type === "valve" ? 8 : issue.type === "bolts" ? 6 : issue.type === "harpoon" ? 3 : issue.type === "weld" ? 1 : issue.type === "alignment" ? 90 : 9;
+      const value = issue.type === "sequence" || issue.type === "engine" || issue.type === "harpoon" ? issue.step : issue.type === "bolts" ? issue.bolts.length : issue.type === "alignment" ? max - Math.abs(issue.angle) : issue.progress;
       progress.style.width = `${Math.max(0, Math.min(100, value / max * 100))}%`;
     }
-    const compass = el.repairChallenge.querySelector(".compass-mark");
-    if (compass) compass.textContent = issue.direction < 0 ? "↓" : issue.direction > 0 ? "↑" : "●";
+    const submarine = el.repairChallenge.querySelector(".alignment-sub");
+    if (submarine) submarine.style.transform = `rotate(${issue.angle}deg)`;
+    const pumpFill = el.repairChallenge.querySelector(".pump-gauge i");
+    if (pumpFill) pumpFill.style.width = `${Math.min(100, issue.progress / 9 * 100)}%`;
+    const pumpReading = el.repairChallenge.querySelector(".pump-reading");
+    if (pumpReading) pumpReading.textContent = `${Math.min(9, issue.progress)} / 9 strokes`;
     el.repairChallenge.querySelectorAll("[data-repair='bolt']").forEach((button) => {
       const complete = issue.bolts.includes(Number(button.dataset.index));
       button.classList.toggle("done", complete);
@@ -901,7 +993,14 @@
       if (!button.hasAttribute("data-index") || issue.type !== "bolts") button.disabled = localRole !== "engineer" || gameState.ended;
     });
     const weldDot = el.repairChallenge.querySelector(".weld-dot");
-    if (weldDot) weldDot.style.left = `${Math.max(8, issue.progress * 100)}%`;
+    if (weldDot) {
+      const segment = Math.min(weldPath.length - 2, Math.floor(issue.progress * (weldPath.length - 1)));
+      const fraction = issue.progress * (weldPath.length - 1) - segment;
+      const from = weldPath[segment];
+      const to = weldPath[segment + 1];
+      weldDot.style.left = `${(from[0] + (to[0] - from[0]) * fraction) * 100}%`;
+      weldDot.style.top = `${(from[1] + (to[1] - from[1]) * fraction) * 100}%`;
+    }
   }
 
   function renderShop() {
@@ -912,7 +1011,10 @@
     const total = gameState.inventory.reduce((sum, fish) => sum + fish.value, 0);
     el.inventoryValue.textContent = `+${total} ◈`;
     el.sellButton.disabled = !open || total === 0 || localRole !== "engineer" || gameState.ended;
-    el.inventoryCopy.textContent = gameState.inventory.length ? `${gameState.inventory.length} fish in the hold · sell the haul to fund crew upgrades.` : "Your hold is empty. Catch fish to sell them for gold.";
+    const species = [...new Set(gameState.inventory.map((fish) => fish.species).filter(Boolean))];
+    el.inventoryCopy.textContent = gameState.inventory.length
+      ? `${gameState.inventory.length} fish in the hold${species.length ? ` · ${species.join(", ")}` : ""}. Sell the haul to fund crew upgrades.`
+      : "Your hold is empty. Catch fish to sell them for gold.";
     el.upgradeList.replaceChildren();
     for (const [key, item] of Object.entries(upgrades)) {
       const card = document.createElement("div");
@@ -973,14 +1075,6 @@
     return ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][Math.min(9, value - 1)] || `${value}`;
   }
 
-  function roomChanged(room) {
-    if (!rooms.includes(room)) return;
-    selectedRoom = room;
-    selectedIssueId = null;
-    repairSignature = "";
-    render();
-  }
-
   function handleFishingClick(event) {
     const button = event.target.closest("[data-fishing]");
     if (!button || localRole !== "fisher" || gameState.ended) return;
@@ -1023,8 +1117,8 @@
     }
     if (localRole === "engineer" && selectedIssueId && !event.repeat) {
       const issue = issueById(selectedIssueId);
-      if (issue && issue.type === "alignment" && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-        sendAction("repair", { id: issue.id, room: issue.room, mode: "align", direction: event.key === "ArrowUp" ? 1 : -1 });
+      if (issue && issue.type === "alignment" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        sendAction("repair", { id: issue.id, room: issue.room, mode: "align", direction: event.key === "ArrowRight" ? 1 : -1 });
       } else if (issue && issue.type === "engine" && arrowKeys.includes(event.key)) {
         sendAction("repair", { id: issue.id, room: issue.room, mode: "engine", key: event.key });
       } else if (issue && (issue.type === "fuel" || issue.type === "water") && event.code === "Space") {
@@ -1046,10 +1140,25 @@
     if (!track || !weldPointerDown || localRole !== "engineer" || !selectedIssueId) return;
     const rect = track.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const dot = track.querySelector(".weld-dot");
-    dot.style.left = `${Math.max(8, x * 100)}%`;
+    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
     const issue = issueById(selectedIssueId);
-    if (issue && x - issue.progress > .025) sendAction("repair", { id: issue.id, room: issue.room, mode: "weld", value: x });
+    if (!issue || issue.type !== "weld") return;
+    let nearest = { progress: 0, distance: Infinity };
+    for (let index = 0; index < weldPath.length - 1; index++) {
+      const [x1, y1] = weldPath[index];
+      const [x2, y2] = weldPath[index + 1];
+      const dx = (x2 - x1) * rect.width;
+      const dy = (y2 - y1) * rect.height;
+      const lengthSquared = dx * dx + dy * dy;
+      const projection = Math.max(0, Math.min(1, ((x - x1) * rect.width * dx + (y - y1) * rect.height * dy) / lengthSquared));
+      const px = x1 + (x2 - x1) * projection;
+      const py = y1 + (y2 - y1) * projection;
+      const distance = Math.hypot((x - px) * rect.width, (y - py) * rect.height);
+      if (distance < nearest.distance) nearest = { progress: (index + projection) / (weldPath.length - 1), distance };
+    }
+    if (nearest.distance <= 24 && nearest.progress > issue.progress + .012 && nearest.progress <= issue.progress + .08) {
+      sendAction("repair", { id: issue.id, room: issue.room, mode: "weld", value: nearest.progress });
+    }
   }
 
   function bindEvents() {
@@ -1079,10 +1188,6 @@
       render();
     });
     el.fishingActions.addEventListener("click", handleFishingClick);
-    el.roomNav.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-room]");
-      if (button) roomChanged(button.dataset.room);
-    });
     el.missionList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-issue]");
       if (!button || localRole !== "engineer") return;
@@ -1092,7 +1197,12 @@
     });
     el.repairChallenge.addEventListener("click", handleRepairClick);
     el.repairChallenge.addEventListener("pointerdown", (event) => {
-      if (event.target.closest(".weld-track")) weldPointerDown = true;
+      const track = event.target.closest(".weld-track");
+      if (track) {
+        weldPointerDown = true;
+        track.setPointerCapture(event.pointerId);
+        handleWeldPointerMove(event);
+      }
     });
     el.repairChallenge.addEventListener("pointermove", handleWeldPointerMove);
     el.repairChallenge.addEventListener("pointerup", () => { weldPointerDown = false; });

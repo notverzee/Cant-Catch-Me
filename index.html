@@ -43,7 +43,7 @@
           <label class="field-label" for="join-code">ROOM CODE</label>
           <div class="join-row"><input id="join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Room code"><button class="secondary-button" type="submit">Join <span aria-hidden="true">→</span></button></div>
         </form>
-        <button class="practice-link" id="practice-button">Try a solo practice run <span aria-hidden="true">→</span></button>
+        <button class="practice-link" id="practice-button"><span><b>Play locally</b><small>Solo voyage · switch between both crew roles</small></span><span aria-hidden="true">→</span></button>
         <p class="connection-message" id="connection-message" role="status"></p>
       </div>
       <div class="lobby-footer"><span>BUILT FOR TWO, BEST PLAYED WITH A FRIEND</span><span>ONLINE CO-OP · NO ACCOUNT NEEDED</span></div>
@@ -51,7 +51,7 @@
 
     <section class="game hidden" id="game">
       <div class="game-heading">
-        <div><p class="eyebrow" id="expedition-label">EXPEDITION 001</p><h2>Pelagic Passage</h2></div>
+        <div><h2>Pelagic Passage</h2></div>
         <div class="game-heading-right"><span class="role-badge" id="role-badge">FISHER</span><button class="quiet-button" id="leave-button">Leave voyage</button></div>
       </div>
 
@@ -72,7 +72,7 @@
 
       <div class="stations">
         <section class="station fisher-station" data-station="fisher">
-          <header class="station-header"><div class="station-title"><span class="station-icon">⌁</span><div><p class="eyebrow">UPPER DECK</p><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
+          <header class="station-header"><div class="station-title"><span class="station-icon">⌁</span><div><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
           <div class="ocean-scene">
             <img id="fish-image" alt="" hidden>
             <div class="ocean-silhouette" aria-hidden="true"><span>◉</span></div>
@@ -86,13 +86,14 @@
         </section>
 
         <section class="station engineer-station" data-station="engineer">
-          <header class="station-header"><div class="station-title"><span class="station-icon">✳</span><div><p class="eyebrow">INSIDE THE SUB</p><h3>Engineer board</h3></div></div><span class="station-owner" id="engineer-owner">ENGINEER</span></header>
-          <div class="room-nav" id="room-nav" aria-label="Submarine rooms"></div>
-          <div class="mission-list" id="mission-list"></div>
-          <div class="repair-panel hidden" id="repair-panel">
-            <div class="repair-heading"><div><p class="eyebrow" id="repair-room-label">ROOM</p><h4 id="repair-title">Repair mission</h4></div><button class="icon-button" id="close-repair" aria-label="Close repair mission">×</button></div>
-            <p class="repair-instructions" id="repair-instructions"></p>
-            <div class="repair-challenge" id="repair-challenge"></div>
+          <header class="station-header"><div class="station-title"><span class="station-icon">✳</span><div><h3>Sub systems</h3></div></div><span class="station-owner" id="engineer-owner">ENGINEER</span></header>
+          <div class="engineer-board">
+            <div class="mission-list" id="mission-list"></div>
+            <div class="repair-panel hidden" id="repair-panel">
+              <div class="repair-heading"><div><p class="eyebrow" id="repair-room-label">ROOM</p><h4 id="repair-title">Repair mission</h4></div><button class="icon-button" id="close-repair" aria-label="Close repair mission">×</button></div>
+              <p class="repair-instructions" id="repair-instructions"></p>
+              <div class="repair-challenge" id="repair-challenge"></div>
+            </div>
           </div>
           <div class="upgrade-summary" id="engineer-upgrade-summary">Reinforced hull I <span>Reduces incoming damage</span></div>
         </section>
@@ -100,6 +101,7 @@
 
       <section class="bottom-bar">
         <div class="crew-note"><span class="crew-dot"></span><span id="crew-message">A good crew keeps talking.</span></div>
+        <span class="network-note" id="net-status">Connecting crew…</span>
         <button class="shop-button hidden" id="shop-button"><span>⚓</span> Checkpoint shop <span aria-hidden="true">→</span></button>
         <button class="quiet-button practice-role hidden" id="switch-role">Switch practice role</button>
       </section>
@@ -112,7 +114,6 @@
         <div><p class="eyebrow">EXPEDITION ENDED</p><b>The hull couldn't take any more.</b><span>Start a new voyage to give it another go.</span></div>
         <button class="secondary-button" id="restart-button">Start new voyage <span aria-hidden="true">→</span></button>
       </section>
-      <footer class="game-footer"><span id="net-status">Connecting crew…</span><span>Fisher: WASD / arrows + Space · Engineer: arrow keys, mouse & clicks</span></footer>
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
