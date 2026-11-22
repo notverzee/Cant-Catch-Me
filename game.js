@@ -46,7 +46,9 @@
   const pityThresholds = { legendary: 1000, mythic: 5000, treasure: 12500 };
   const checkpointDistance = 150;
   const fishPerCheckpoint = 5;
-  const baitCapacity = 10;
+  const baitCapacity = 20;
+  const baitRestockAmount = 10;
+  const baseBaitPrice = 15;
   const chatPhrases = [
     "Fish on the line!", "Hull needs help!", "Harpoon is broken!", "Repair the engine!",
     "Restock bait at the checkpoint!", "Let's buy the hull upgrade.", "Save our gold for bait.",
@@ -1499,7 +1501,7 @@
   }
 
   function baitPrice() {
-    return 5 + Math.floor(gameState.baitPurchases / 6);
+    return baseBaitPrice + Math.floor(gameState.baitPurchases / 6);
   }
 
   function buyBait() {
@@ -1510,15 +1512,15 @@
     }
     const cost = baitPrice();
     if (gameState.gold < cost) {
-      sendNotice(`Not enough gold — ${baitCapacity} bait costs ${cost} G.`, true);
+      sendNotice(`Not enough gold — ${baitRestockAmount} bait costs ${cost} G.`, true);
       return;
     }
     gameState.gold -= cost;
-    gameState.bait = baitCapacity;
+    gameState.bait = Math.min(baitCapacity, gameState.bait + baitRestockAmount);
     gameState.baitPurchases += 1;
     gameState.fishSpawnIn = 4 + Math.floor(Math.random() * 5);
     playSfx("sell");
-    sendNotice(`Restocked ${baitCapacity} bait for ${cost} G. The next restock price rises slowly.`);
+    sendNotice(`Restocked ${baitRestockAmount} bait for ${cost} G. The next restock price rises slowly.`);
   }
 
   function progressMarkup(value, max) {
@@ -2066,7 +2068,7 @@
       : "Your hold is empty. Catch fish to sell them for gold.";
     el.buyBait.textContent = gameState.bait > 0
       ? `${gameState.bait}/${baitCapacity} bait aboard`
-      : `Restock ${baitCapacity} bait · ${baitPrice()} G`;
+      : `Restock ${baitRestockAmount} bait · ${baitPrice()} G`;
     el.buyBait.disabled = !open || gameState.bait > 0 || gameState.gold < baitPrice() || gameState.ended;
     el.upgradeList.replaceChildren();
     for (const [key, item] of Object.entries(upgrades)) {
