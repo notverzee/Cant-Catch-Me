@@ -46,6 +46,7 @@
   const pityThresholds = { legendary: 1000, mythic: 5000, treasure: 12500 };
   const checkpointDistance = 150;
   const fishPerCheckpoint = 5;
+  const baitCapacity = 10;
   const chatPhrases = [
     "Fish on the line!", "Hull needs help!", "Harpoon is broken!", "Repair the engine!",
     "Restock bait at the checkpoint!", "Let's buy the hull upgrade.", "Save our gold for bait.",
@@ -211,7 +212,7 @@
       hull: 100,
       fuel: 100,
       water: 0,
-      bait: 10,
+      bait: baitCapacity,
       baitPurchases: 0,
       gold: 0,
       caught: 0,
@@ -1048,7 +1049,7 @@
     const rarity = pickRarity();
     const type = ["aim", "rhythm", "reel", "shoal"][Math.floor(Math.random() * 4)];
     const species = rarity.species[Math.floor(Math.random() * rarity.species.length)];
-    gameState.bait -= 1;
+    gameState.bait = Math.max(0, gameState.bait - 1);
     gameState.encounter = {
       id: `${Date.now()}-${Math.random()}`,
       rarity: rarity.key,
@@ -1057,7 +1058,7 @@
       stage: type === "shoal" ? "hooked" : "bite",
       timeLeft: type === "shoal" ? 16 : 9,
       progress: 0,
-      needed: type === "shoal" ? 1 : type === "reel" ? Math.max(8, 17 - Math.min(upgradeMaxLevels.harpoon, gameState.upgrades.harpoon) * 2) : type === "aim" ? 7 : 5,
+      needed: type === "shoal" ? 1 : type === "reel" ? Math.max(8, 17 - Math.min(upgradeMaxLevels.harpoon, gameState.upgrades.harpoon) * 2) : 5,
       sequence: type === "rhythm" ? Array.from({ length: 5 }, () => arrowKeys[Math.floor(Math.random() * 4)]) : [],
       seqIndex: 0,
       target: { x: .62 + Math.random() * .24, y: .32 + Math.random() * .36 },
@@ -1181,8 +1182,9 @@
           const scene = el.oceanScene.getBoundingClientRect();
           const dx = (fish.aim.x - fish.target.x) * (scene.width || 500);
           const dy = (fish.aim.y - fish.target.y) * (scene.height || 170);
-          if (Math.hypot(dx, dy) <= 19) fish.progress = Math.min(fish.needed, fish.progress + 1);
-          else fish.progress = Math.max(0, fish.progress - .35);
+          const aimDistance = Math.hypot(dx, dy);
+          if (aimDistance <= 32) fish.progress = Math.min(fish.needed, fish.progress + 1);
+          else if (aimDistance > 48) fish.progress = Math.max(0, fish.progress - .2);
           if (fish.progress >= fish.needed) catchFish();
         }
         if (fish.type === "shoal") {
@@ -1201,9 +1203,11 @@
       const fishingPaused = gameState.barnacleCleaning > 0 || gameState.ropeTangled;
       if (fishingPaused) {
         gameState.fishSpawnIn = Math.max(1, gameState.fishSpawnIn);
+      } else if (gameState.bait <= 0) {
+        gameState.fishSpawnIn = 0;
       } else {
         gameState.fishSpawnIn -= 1;
-        if (gameState.fishSpawnIn <= 0 && gameState.bait > 0 && !gameState.issues.some((issue) => issue.type === "harpoon")) spawnEncounter();
+        if (gameState.fishSpawnIn <= 0 && !gameState.issues.some((issue) => issue.type === "harpoon")) spawnEncounter();
       }
     }
 
@@ -1500,16 +1504,21 @@
 
   function buyBait() {
     if (!gameState.checkpointOpen) return;
+    if (gameState.bait > 0) {
+      sendNotice(`Use the remaining ${gameState.bait} bait before restocking.`, true);
+      return;
+    }
     const cost = baitPrice();
     if (gameState.gold < cost) {
-      sendNotice(`Not enough gold — 10 bait costs ${cost} G.`, true);
+      sendNotice(`Not enough gold — ${baitCapacity} bait costs ${cost} G.`, true);
       return;
     }
     gameState.gold -= cost;
-    gameState.bait += 10;
+    gameState.bait = baitCapacity;
     gameState.baitPurchases += 1;
+    gameState.fishSpawnIn = 4 + Math.floor(Math.random() * 5);
     playSfx("sell");
-    sendNotice(`Restocked 10 bait for ${cost} G. The next restock price rises slowly.`);
+    sendNotice(`Restocked ${baitCapacity} bait for ${cost} G. The next restock price rises slowly.`);
   }
 
   function progressMarkup(value, max) {
@@ -1616,7 +1625,15 @@
     target.classList.add("hidden");
     dot.classList.add("hidden");
     el.shoalCursor.classList.add("hidden");
-    el.baitCount.textContent = `${gameState.bait} bait`;
+    const baitEmpty = gameState.bait <= 0;
+    el.baitCount.textContent = baitEmpty
+      ? fish ? "0 BAIT · LAST ENCOUNTER" : "NO BAIT · CHECKPOINT"
+      : `BAIT · ${gameState.bait}`;
+    el.baitCount.classList.toggle("low", gameState.bait > 0 && gameState.bait <= 2);
+    el.baitCount.classList.toggle("empty", baitEmpty);
+    el.baitCount.setAttribute("aria-label", baitEmpty
+      ? fish ? "No bait remaining; finish the current encounter" : "No bait; restock at the next checkpoint"
+      : `${gameState.bait} bait remaining`);
     const harpoonOffline = gameState.issues.some((issue) => issue.type === "harpoon");
     el.harpoonWarning.classList.toggle("hidden", !harpoonOffline);
     if (!fish) {
@@ -1631,10 +1648,16 @@
           ? "Fishing is paused while the Fisher cleans the hull."
           : gameState.bait > 0
             ? "Next sonar contact expected in about 4–8 seconds."
-            : "No bait left. Restock at the next checkpoint.";
-      el.fishingTaskTitle.textContent = "Standing by";
-      el.fishingTaskHelp.textContent = "Watch for a bite and follow the on-screen challenge.";
-      el.fishingActions.replaceChildren(makeButton("Waiting for a bite", {}, "action-button"));
+            : gameState.checkpointOpen
+              ? "No bait left. Restock at this checkpoint."
+              : "No bait left. Restock at the next checkpoint.";
+      el.fishingTaskTitle.textContent = baitEmpty ? "No bait left" : "Standing by";
+      el.fishingTaskHelp.textContent = baitEmpty
+        ? gameState.checkpointOpen
+          ? "Restock ten bait in the checkpoint shop before fishing again."
+          : "Restock at the next checkpoint before fishing again."
+        : "Watch for a bite and follow the on-screen challenge.";
+      el.fishingActions.replaceChildren(makeButton(baitEmpty ? "NO BAIT · CHECKPOINT" : "Waiting for a bite", {}, "action-button"));
       el.fishingActions.firstElementChild.disabled = true;
       el.fishImage.hidden = true;
       $(".ocean-silhouette").hidden = false;
@@ -1716,8 +1739,8 @@
       el.swimmingFish.replaceChildren();
       el.fishingTaskTitle.textContent = "Keep the aim steady";
       el.fishingTaskHelp.textContent = isSharedControlMode()
-        ? "Fisher: use WASD or move the mouse to keep the dot inside the drifting ring."
-        : "Move the dot into the drifting ring and hold it there. Use mouse or WASD / arrows.";
+        ? "Fisher: use WASD or mouse to keep the dot in the ring; slight drift won't erase progress."
+        : "Keep the dot in the drifting ring; slight deviations won't erase progress. Use mouse or WASD / arrows.";
       target.classList.remove("hidden");
       dot.classList.remove("hidden");
       target.style.left = `${fish.target.x * 100}%`;
@@ -2041,8 +2064,10 @@
     el.inventoryCopy.textContent = gameState.inventory.length
       ? `${gameState.inventory.length} fish in the hold${species.length ? ` · ${species.join(", ")}` : ""}. Sell the haul to fund crew upgrades.`
       : "Your hold is empty. Catch fish to sell them for gold.";
-    el.buyBait.textContent = `Restock 10 bait · ${baitPrice()} G`;
-    el.buyBait.disabled = !open || gameState.gold < baitPrice() || gameState.ended;
+    el.buyBait.textContent = gameState.bait > 0
+      ? `${gameState.bait}/${baitCapacity} bait aboard`
+      : `Restock ${baitCapacity} bait · ${baitPrice()} G`;
+    el.buyBait.disabled = !open || gameState.bait > 0 || gameState.gold < baitPrice() || gameState.ended;
     el.upgradeList.replaceChildren();
     for (const [key, item] of Object.entries(upgrades)) {
       const card = document.createElement("div");

@@ -232,10 +232,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .rhythm-key.next { color: #072a30; border-color: var(--cyan); background: var(--cyan); animation: rhythm-pulse .7s ease-in-out infinite alternate; }
 @keyframes rhythm-pulse { to { box-shadow: 0 0 13px rgba(108, 225, 212, .75); transform: translateY(-2px); } }
 .aim-target, .aim-dot { z-index: 4; position: absolute; pointer-events: none; transform: translate(-50%, -50%); }
-.aim-target { width: 50px; height: 50px; border: 2px solid var(--lime); border-radius: 50%; box-shadow: 0 0 14px rgba(196, 237, 240, .35), inset 0 0 10px rgba(196, 237, 240, .16); transition: left .85s ease-in-out, top .85s ease-in-out; }
+.aim-target { width: 64px; height: 64px; border: 2px solid var(--lime); border-radius: 50%; box-shadow: 0 0 14px rgba(196, 237, 240, .35), inset 0 0 10px rgba(196, 237, 240, .16); transition: left .85s ease-in-out, top .85s ease-in-out; }
 .aim-target::before, .aim-target::after { position: absolute; background: var(--lime); content: ''; }
-.aim-target::before { top: 50%; left: -7px; width: 60px; height: 1px; }
-.aim-target::after { top: -7px; left: 50%; width: 1px; height: 60px; }
+.aim-target::before { top: 50%; left: -7px; width: 74px; height: 1px; }
+.aim-target::after { top: -7px; left: 50%; width: 1px; height: 74px; }
 .aim-dot { width: 11px; height: 11px; border: 2px solid #fff; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); transition: left .08s ease-out, top .08s ease-out; }
 .smoke-active .ocean-scene::after { background: linear-gradient(90deg, rgba(18, 30, 34, .6), rgba(96, 95, 78, .23)); }
 .station-inactive { border-color: rgba(36, 68, 84, .75); }
@@ -375,7 +375,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outl
 .fish-timer small { color: var(--muted); font: 7px 'DM Mono', monospace; letter-spacing: .12em; }
 .fish-timer.urgent { color: var(--red); border-color: rgba(255, 129, 117, .7); animation: timer-pulse .65s ease-in-out infinite alternate; }
 @keyframes timer-pulse { to { box-shadow: 0 0 15px rgba(255, 129, 117, .45); } }
-.bait-count { color: var(--muted); font: 9px 'DM Mono', monospace; }
+.bait-count { min-height: 25px; display: inline-flex; align-items: center; padding: 0 9px; color: #b9f4f4; border: 1px solid #28616a; border-radius: 4px; background: #0b252a; font: 700 9px 'DM Mono', monospace; letter-spacing: .06em; white-space: nowrap; }
+.bait-count.low { color: var(--amber); border-color: #765d35; background: #2a2114; }
+.bait-count.empty { color: #ff9789; border-color: #75463f; background: #291816; }
 .harpoon-warning { color: #ff8b7b; font: 700 8px 'DM Mono', monospace; letter-spacing: .06em; }
 .swimming-fish { z-index: 3; position: absolute; inset: 0; pointer-events: none; }
 .fish-swimmer { position: absolute; width: 58px; height: 38px; display: grid; place-items: center; padding: 3px; border: 0; background: transparent; cursor: pointer; pointer-events: auto; transform: translate(-50%, -50%); animation: swim-bob 1.8s ease-in-out infinite alternate; transition: left .9s linear, top .9s ease; }

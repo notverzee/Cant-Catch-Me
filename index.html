@@ -191,7 +191,7 @@
             <div class="shoal-cursor hidden" id="shoal-cursor" aria-hidden="true"><span></span></div>
             <div class="ocean-copy"><span class="eyebrow" id="encounter-rarity">SCANNING THE DEEP</span><h4 id="encounter-title">The water is quiet</h4><p id="encounter-copy">A new catch could appear at any moment.</p></div>
           </div>
-          <div class="fishing-meta"><span class="harpoon-warning hidden" id="harpoon-warning">HARPOON DAMAGED · FISHING LOCKED</span><span class="bait-count" id="bait-count">10 bait</span></div>
+          <div class="fishing-meta"><span class="harpoon-warning hidden" id="harpoon-warning">HARPOON DAMAGED · FISHING LOCKED</span><span class="bait-count" id="bait-count" aria-live="polite">BAIT · 10</span></div>
           <div class="fishing-controls">
             <div class="challenge-copy"><b id="fishing-task-title">Standing by</b><span id="fishing-task-help">Watch for a bite and follow the on-screen challenge.</span></div>
             <div class="challenge-actions" id="fishing-actions"><button class="action-button" disabled>Waiting for a bite</button></div>
@@ -232,7 +232,7 @@
       <section class="shop-panel hidden" id="shop-panel">
         <div class="shop-heading"><div><p class="eyebrow">SAFE WATER · CHECKPOINT</p><h3>Trade & refit</h3></div><button class="icon-button" id="close-shop" aria-label="Close shop">×</button></div>
         <p id="inventory-copy">Sell your haul and invest in upgrades for the crew.</p>
-        <div class="bait-restock"><span><b>Harpoon bait</b><small>One bait is used for each fishing encounter. Restock ten at a time.</small></span><button class="secondary-button" id="buy-bait">Restock 10 bait · 5 G</button></div>
+        <div class="bait-restock"><span><b>Harpoon bait</b><small>One bait is spent when an encounter appears. The harpoon holds 10; restock when empty at a checkpoint.</small></span><button class="secondary-button" id="buy-bait">Restock 10 bait · 5 G</button></div>
         <div class="shop-actions"><button class="secondary-button" id="sell-button">Sell all fish <span id="inventory-value">+0 ◈</span></button><div class="upgrade-list" id="upgrade-list"></div></div>
       </section>
       <section class="fish-log-panel hidden" id="fish-log-panel" aria-labelledby="fish-log-title">
