@@ -22,7 +22,7 @@
     water: { name: "Pump out the bilge", description: "Water is collecting in the bilge.", instructions: "Build pressure with repeated pump strokes to clear the bilge before it rises further." },
     valve: { name: "Turn the loose valve", description: "A gas valve has come loose.", instructions: "Click the valve repeatedly to tighten it and stop the leak." },
     weld: { name: "Weld the hull", description: "A crack is spreading along the outer hull.", instructions: "Press and carefully drag the torch along the winding seam from START to FINISH." },
-    bolts: { name: "Rescrew the bolts", description: "Several hull bolts are working loose.", instructions: "Find and secure all six loose bolts scattered across the hull plate." },
+    bolts: { name: "Rescrew the bolts", description: "Several hull bolts are working loose.", instructions: "Find all six loose bolts and turn each one three times to secure the hull plate." },
     barnacles: { name: "Scrape the barnacles", description: "A thick colony is dragging along the hull.", instructions: "Aim the robotic scraper at every barnacle cluster and clear the hull before the drag gets worse." },
     harpoon: { name: "Replace the harpoon", description: "The harpoon mechanism is damaged.", instructions: "Complete each step to replace and reload the harpoon." }
   };
@@ -44,7 +44,14 @@
     ]));
   });
   const pityThresholds = { legendary: 1000, mythic: 5000, treasure: 12500 };
-  const chatPhrases = ["Fish on the line!", "Hull needs help!", "Harpoon is broken!", "Repair the engine!", "Restock bait at the checkpoint!"];
+  const checkpointDistance = 150;
+  const fishPerCheckpoint = 5;
+  const chatPhrases = [
+    "Fish on the line!", "Hull needs help!", "Harpoon is broken!", "Repair the engine!",
+    "Restock bait at the checkpoint!", "Let's buy the hull upgrade.", "Save our gold for bait.",
+    "Sell the catch now?", "I vote for the fuel upgrade.", "Hold our gold for the next checkpoint.",
+    "Great catch!", "I am cleaning the barnacles.", "My fishing line is tangled!"
+  ];
   const storyCards = [
     { title: "A promise below the waves", text: "Your great-grandfather's family was poor and buried in debt. He set out to catch exotic fish, hoping the haul could pay what they owed and give his children a future.", stage: "departure" },
     { title: "The last signal", text: "His submarine imploded in the deepest water before he could return. His remains and the wreck were lost below, leaving only a fading sonar trace.", stage: "descent" },
@@ -62,12 +69,13 @@
   const weldPath = [[.02, .5], [.1, .2], [.2, .4], [.3, .8], [.4, .58], [.5, .2], [.6, .35], [.7, .78], [.8, .55], [.9, .18], [.98, .5]];
   const boltSpots = [[.1, .18], [.32, .22], [.57, .15], [.84, .22], [.18, .72], [.43, .82], [.68, .68], [.89, .78], [.5, .47], [.27, .48]];
   const upgrades = {
-    hull: { name: "Reinforced hull", description: "Take less damage from leaks and impacts.", base: 35 },
-    harpoon: { name: "Harpoon winch", description: "Reel in catches with fewer pulls.", base: 30 },
-    lure: { name: "Rare-fish lure", description: "Improve the odds of higher rarities.", base: 40 },
-    fuel: { name: "Efficient engine", description: "Slow the submarine's fuel use.", base: 25 },
-    bilge: { name: "Bilge pump", description: "Slow water buildup and pump faster.", base: 25 }
+    hull: { name: "Reinforced hull", description: "Reduce hull damage from impacts and leaks by up to 75%.", base: 35 },
+    harpoon: { name: "Harpoon winch", description: "Reel in catches with fewer pulls (minimum 8).", base: 30 },
+    lure: { name: "Rare-fish lure", description: "Improve rare catch odds and shorten sonar waits.", base: 40 },
+    fuel: { name: "Efficient engine", description: "Slow routine fuel burn by up to 75%.", base: 25 },
+    bilge: { name: "Bilge pump", description: "Slow water buildup and require fewer pump strokes.", base: 25 }
   };
+  const upgradeMaxLevels = { hull: 10, harpoon: 5, lure: 5, fuel: 5, bilge: 5 };
   const rarityByKey = Object.fromEntries(rarityData.map((item) => [item.key, item]));
 
   const el = {
@@ -83,12 +91,23 @@
     menuTabs: $("#menu-tabs"),
     localButton: $("#local-button"),
     soloButton: $("#solo-button"),
+    menuMusic: $("#menu-music"),
+    engineSound: $("#engine-sound"),
     baitCount: $("#bait-count"),
+    fisherTimer: $("#fisher-timer"),
     harpoonWarning: $("#harpoon-warning"),
     swimmingFish: $("#swimming-fish"),
     shoalCursor: $("#shoal-cursor"),
     quickChat: $("#quick-chat"),
+    quickChatFeed: $("#quick-chat-feed"),
     buyBait: $("#buy-bait"),
+    barnacleValue: $("#barnacle-value"),
+    barnacleMeter: $("#barnacle-meter"),
+    fisherActivityStatus: $("#fisher-activity-status"),
+    fisherActivityButton: $("#fisher-activity-button"),
+    barnacleCleanupOverlay: $("#barnacle-cleanup-overlay"),
+    barnacleCleanupProgress: $("#barnacle-cleanup-progress"),
+    barnacleCleanupField: $("#barnacle-cleanup-field"),
     roleSelectionOverlay: $("#role-selection-overlay"),
     roleSelectionTitle: $("#role-selection-title"),
     roleSelectionCopy: $("#role-selection-copy"),
@@ -108,6 +127,7 @@
     gold: $("#gold"),
     caughtCount: $("#caught-count"),
     checkpointDistance: $("#checkpoint-distance"),
+    checkpointFishProgress: $("#checkpoint-fish-progress"),
     progressMeter: $("#progress-meter"),
     hullValue: $("#hull-value"),
     hullMeter: $("#hull-meter"),
@@ -132,6 +152,7 @@
     repairPanel: $("#repair-panel"),
     repairRoomLabel: $("#repair-room-label"),
     repairTitle: $("#repair-title"),
+    repairTimer: $("#repair-timer"),
     repairInstructions: $("#repair-instructions"),
     repairChallenge: $("#repair-challenge"),
     closeRepair: $("#close-repair"),
@@ -146,7 +167,12 @@
     inventoryCopy: $("#inventory-copy"),
     upgradeList: $("#upgrade-list"),
     netStatus: $("#net-status"),
-    toast: $("#toast")
+    toast: $("#toast"),
+    fishLogButton: $("#fish-log-button"),
+    fishLogPanel: $("#fish-log-panel"),
+    closeFishLog: $("#close-fish-log"),
+    fishLogSummary: $("#fish-log-summary"),
+    fishCollection: $("#fish-collection")
   };
 
   let gameState;
@@ -159,6 +185,8 @@
   let roleSelectionContext = null;
   let pendingOnlineRole = null;
   let localFisherPlayer = 1;
+  let fishCollectionSignature = null;
+  let barnacleCleanupSignature = "";
   let selectedIssueId = null;
   let repairSignature = "";
   let hostTimer = null;
@@ -166,16 +194,20 @@
   let toastTimer = null;
   let weldPointerDown = false;
   let lastAimSent = 0;
+  let lastOceanPointerSent = 0;
   let lastReelSent = 0;
   let lastShoalMoveSent = 0;
   let storyStep = 0;
   let storyActive = false;
+  let audioContext = null;
+  let audioUnlocked = false;
 
   function initialState() {
     return {
       depth: 0,
-      nextCheckpoint: 250,
+      nextCheckpoint: checkpointDistance,
       checkpointOpen: false,
+      fishSinceCheckpoint: 0,
       hull: 100,
       fuel: 100,
       water: 0,
@@ -184,14 +216,23 @@
       gold: 0,
       caught: 0,
       inventory: [],
+      collection: {},
       issues: [],
       encounter: null,
+      barnacles: 0,
+      barnacleCritical: false,
+      barnacleCleaning: 0,
+      barnaclePositions: [],
+      barnacleTargets: [],
+      ropeTangled: false,
+      ropeFixProgress: 0,
+      ropeTangleIn: 50 + Math.floor(Math.random() * 31),
       upgrades: { hull: 0, harpoon: 0, lure: 0, fuel: 0, bilge: 0 },
       purchases: { hull: 0, harpoon: 0, lure: 0, fuel: 0, bilge: 0 },
       pity: { legendary: 0, mythic: 0, treasure: 0 },
       seconds: 0,
       issueSpawnIn: 15,
-      fishSpawnIn: 8,
+      fishSpawnIn: 4 + Math.floor(Math.random() * 5),
       ended: false
     };
   }
@@ -226,6 +267,106 @@
     el.toast.classList.add("visible");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove("visible"), 2800);
+  }
+
+  function initializeAudio() {
+    if (audioContext) return;
+    el.menuMusic.volume = .35;
+    el.engineSound.volume = .23;
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    try {
+      audioContext = new AudioContextConstructor();
+      const menuSource = audioContext.createMediaElementSource(el.menuMusic);
+      const menuGain = audioContext.createGain();
+      menuGain.gain.value = .85;
+      menuSource.connect(menuGain).connect(audioContext.destination);
+      const engineSource = audioContext.createMediaElementSource(el.engineSound);
+      const engineFilter = audioContext.createBiquadFilter();
+      engineFilter.type = "lowpass";
+      engineFilter.frequency.value = 850;
+      engineFilter.Q.value = .7;
+      const engineGain = audioContext.createGain();
+      engineGain.gain.value = .8;
+      engineSource.connect(engineFilter).connect(engineGain).connect(audioContext.destination);
+    } catch (error) {
+      audioContext = null;
+      el.engineSound.volume = .2;
+      console.error("Could not configure the underwater audio filter.", error);
+    }
+  }
+
+  function playTrack(audio, shouldPlay) {
+    if (!shouldPlay) {
+      audio.pause();
+      return;
+    }
+    const playback = audio.play();
+    playback?.catch((error) => {
+      if (error.name === "NotAllowedError") {
+        audioUnlocked = false;
+        return;
+      }
+      console.error(`Could not play audio track ${audio.currentSrc || audio.src}.`, error);
+    });
+  }
+
+  function syncMusic() {
+    if (!audioUnlocked) return;
+    const inGame = mode !== "lobby";
+    playTrack(el.menuMusic, !inGame);
+    playTrack(el.engineSound, inGame);
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    initializeAudio();
+    if (audioContext?.state === "suspended") {
+      audioContext.resume().catch((error) => {
+        console.error("Could not resume game audio.", error);
+      });
+    }
+    syncMusic();
+  }
+
+  function playSfx(kind) {
+    if (!audioContext || audioContext.state !== "running") return;
+    const sounds = {
+      click: [[600, .035]],
+      action: [[390, .06], [520, .075]],
+      fish: [[390, .09], [620, .14]],
+      catch: [[560, .08], [760, .11], [950, .15]],
+      rare: [[660, .09], [830, .11], [1040, .14], [1320, .2]],
+      sell: [[760, .06], [990, .08], [1240, .16]],
+      repair: [[440, .08], [620, .08], [820, .16]],
+      warning: [[300, .12], [230, .18]]
+    };
+    const notes = sounds[kind];
+    if (!notes) return;
+    const start = audioContext.currentTime;
+    notes.forEach(([frequency, duration], index) => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const noteStart = start + index * .085;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+      gain.gain.setValueAtTime(.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(.055, noteStart + .012);
+      gain.gain.exponentialRampToValueAtTime(.0001, noteStart + duration);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + duration + .01);
+    });
+  }
+
+  function appendChatMessage(sender, text) {
+    const message = document.createElement("p");
+    message.className = "chat-message";
+    message.textContent = `${sender} · ${text}`;
+    el.quickChatFeed.append(message);
+    while (el.quickChatFeed.childElementCount > 4) el.quickChatFeed.firstElementChild.remove();
+    el.quickChatFeed.scrollTop = el.quickChatFeed.scrollHeight;
   }
 
   function setConnectionLabel(message, online = false) {
@@ -408,11 +549,14 @@
   function enterGame(nextMode, role, state) {
     clearConnectionTimer();
     mode = nextMode;
+    syncMusic();
     localRole = role;
     gameState = state || initialState();
     roleSelectionContext = null;
     pendingOnlineRole = null;
     el.roleSelectionOverlay.classList.add("hidden");
+    el.game.classList.toggle("online-fisher", (nextMode === "host" || nextMode === "client") && role === "fisher");
+    el.game.classList.toggle("online-engineer", (nextMode === "host" || nextMode === "client") && role === "engineer");
     el.lobby.classList.add("hidden");
     el.game.classList.remove("hidden");
     $(".shell").classList.add("in-game");
@@ -421,6 +565,7 @@
     if (mode === "client") setConnectionLabel("Crew connected", true);
     selectedIssueId = null;
     repairSignature = "";
+    playSfx("repair");
     if (isSharedControlMode() && gameState.issues.length === 0) makeIssue();
     storyActive = true;
     storyStep = 0;
@@ -463,7 +608,11 @@
       socketRole = null;
     }
     mode = "lobby";
+    syncMusic();
     gameState = null;
+    el.game.classList.remove("online-fisher", "online-engineer");
+    el.quickChatFeed.replaceChildren();
+    el.fishLogPanel.classList.add("hidden");
     localRolePicks = [];
     onlineRolePicks = { host: null, client: null };
     roleSelectionContext = null;
@@ -724,9 +873,14 @@
       else gameState = message.state;
       render();
     } else if (message.type === "notice" && typeof message.text === "string") {
+      if (/caught|sold|fixed|repaired|sonar/i.test(message.text)) {
+        playSfx(/sold/i.test(message.text) ? "sell" : /fixed|repaired/i.test(message.text) ? "repair" : /sonar/i.test(message.text) ? "fish" : "catch");
+      } else if (/critical|breached|got away|damaged|worse|barnacles reached|overwhelmed/i.test(message.text)) {
+        playSfx("warning");
+      }
       toast(message.text, Boolean(message.warning));
     } else if (message.type === "quick-chat" && chatPhrases.includes(message.text)) {
-      toast(`CREW CHAT · ${message.text}`);
+      appendChatMessage("CREW", message.text);
     }
   }
 
@@ -765,7 +919,7 @@
       toast("Crew chat is unavailable while disconnected.", true);
       return;
     }
-    if (broadcast({ type: "quick-chat", text })) toast(`YOU · ${text}`);
+    if (broadcast({ type: "quick-chat", text })) appendChatMessage("YOU", text);
   }
 
   function startHostTimer() {
@@ -783,7 +937,7 @@
     if (gameState.pity.treasure >= pityThresholds.treasure - 1) return rarityByKey.treasure;
     if (gameState.pity.mythic >= pityThresholds.mythic - 1) return rarityByKey.mythic;
     if (gameState.pity.legendary >= pityThresholds.legendary - 1) return rarityByKey.legendary;
-    const lure = gameState.upgrades.lure;
+    const lure = Math.min(upgradeMaxLevels.lure, gameState.upgrades.lure);
     const weighted = rarityData.map((item) => ({
       ...item,
       weight: item.weight * (item.key === "trash" ? Math.max(.45, 1 - lure * .08) : item.key === "common" ? 1 : 1 + Math.max(0, item.size - 1) * lure * .08)
@@ -903,7 +1057,7 @@
       stage: type === "shoal" ? "hooked" : "bite",
       timeLeft: type === "shoal" ? 16 : 9,
       progress: 0,
-      needed: type === "shoal" ? 1 : type === "reel" ? Math.max(8, 17 - gameState.upgrades.harpoon * 2) : type === "aim" ? 7 : 5,
+      needed: type === "shoal" ? 1 : type === "reel" ? Math.max(8, 17 - Math.min(upgradeMaxLevels.harpoon, gameState.upgrades.harpoon) * 2) : type === "aim" ? 7 : 5,
       sequence: type === "rhythm" ? Array.from({ length: 5 }, () => arrowKeys[Math.floor(Math.random() * 4)]) : [],
       seqIndex: 0,
       target: { x: .62 + Math.random() * .24, y: .32 + Math.random() * .36 },
@@ -911,13 +1065,15 @@
       cursor: { x: .5, y: .5 },
       swimmers: type === "shoal" ? makeSwimmers(rarity) : []
     };
-    gameState.fishSpawnIn = 16 + Math.floor(Math.random() * 9) - gameState.upgrades.lure;
+    gameState.fishSpawnIn = Math.max(4, 4 + Math.floor(Math.random() * 5) - Math.min(upgradeMaxLevels.lure, gameState.upgrades.lure));
+    playSfx("fish");
     sendNotice(`Something is on the sonar — ${rarity.name.toLowerCase()} catch!`);
   }
 
-  function makeIssue() {
-    if (gameState.issues.length >= 6) return;
-    const available = Object.keys(issueInfo).filter((type) => !gameState.issues.some((issue) => issue.type === type));
+  function makeIssue(requestedTypes = null) {
+    if (gameState.issues.length >= 6 && !requestedTypes) return;
+    const candidates = requestedTypes || Object.keys(issueInfo).filter((type) => type !== "barnacles");
+    const available = candidates.filter((type) => issueInfo[type] && !gameState.issues.some((issue) => issue.type === type));
     if (!available.length) return;
     const type = available[Math.floor(Math.random() * available.length)];
     let direction = Math.floor(Math.random() * 5) - 2;
@@ -933,6 +1089,7 @@
       angle: type === "alignment" ? Math.sign(direction) * (25 + Math.floor(Math.random() * 36)) : 0,
       pattern: type === "sequence" ? Array.from({ length: 5 }, () => Math.floor(Math.random() * 9)) : type === "engine" ? Array.from({ length: 4 }, () => arrowKeys[Math.floor(Math.random() * 4)]) : [],
       bolts: [],
+      boltTurns: {},
       boltPositions: type === "bolts" ? randomBoltPositions() : [],
       barnacles: type === "barnacles" ? Array.from({ length: 8 }, (_, index) => index) : [],
       barnaclePositions,
@@ -945,10 +1102,48 @@
 
   function tick() {
     if (gameState.ended) return;
+    gameState.barnacles ??= 0;
+    gameState.barnacleCleaning ??= 0;
+    gameState.barnaclePositions ??= [];
+    gameState.barnacleTargets ??= [];
+    gameState.ropeTangled ??= false;
+    gameState.ropeFixProgress ??= 0;
+    gameState.ropeTangleIn ??= 50;
     gameState.seconds += 1;
     gameState.depth += gameState.fuel > 0 ? 1 : .2;
-    gameState.fuel = Math.max(0, gameState.fuel - .08 * (1 - gameState.upgrades.fuel * .09));
+    const fuelReduction = Math.min(.75, gameState.upgrades.fuel * .15);
+    const bilgeReduction = Math.min(.75, gameState.upgrades.bilge * .15);
+    gameState.fuel = Math.max(0, gameState.fuel - .12 * (1 - fuelReduction));
     const hullMitigation = Math.max(.25, 1 - gameState.upgrades.hull * .08);
+    if (gameState.barnacleCleaning <= 0) {
+      gameState.barnacles = Math.min(100, Math.round((gameState.barnacles + 2 / 3) * 100) / 100);
+    }
+    const barnacleCritical = gameState.barnacles >= 60;
+    if (barnacleCritical && !gameState.barnacleCritical) {
+      gameState.barnacleCritical = true;
+      playSfx("warning");
+      sendNotice("Barnacles reached 60% — hull damage is accelerating. Clean them before 100%.", true);
+    } else if (!barnacleCritical) {
+      gameState.barnacleCritical = false;
+    }
+    if (barnacleCritical) {
+      gameState.hull = Math.max(0, gameState.hull - 1.2 * hullMitigation);
+    }
+    if (gameState.barnacles >= 100) {
+      gameState.ended = true;
+      gameState.hull = 0;
+      playSfx("warning");
+      sendNotice("Barnacles overwhelmed the hull at 100%. This voyage is over.", true);
+      return;
+    }
+    if (!gameState.ropeTangled && !gameState.encounter && gameState.ropeTangleIn > 0) {
+      gameState.ropeTangleIn -= 1;
+      if (gameState.ropeTangleIn === 0) {
+        gameState.ropeTangled = true;
+        gameState.ropeFixProgress = 0;
+        sendNotice("The fishing line is tangled! Clear the knot to resume fishing.", true);
+      }
+    }
     for (const issue of gameState.issues) {
       if (issue.secondsLeft > 0) issue.secondsLeft -= 1;
       if (issue.secondsLeft <= 0 && !issue.expired) {
@@ -960,13 +1155,16 @@
       if (issue.type === "valve") gameState.hull = Math.max(0, gameState.hull - (critical ? 2.2 : .35) * hullMitigation);
       if (issue.type === "weld" || issue.type === "bolts") gameState.hull = Math.max(0, gameState.hull - (critical ? 1.8 : .3) * hullMitigation);
       if (issue.type === "alignment") gameState.hull = Math.max(0, gameState.hull - (critical ? 1.1 : .12) * hullMitigation);
-      if (issue.type === "water") gameState.water = Math.min(100, gameState.water + (critical ? 2.6 : .55) * (1 - gameState.upgrades.bilge * .1));
+      if (issue.type === "water") gameState.water = Math.min(100, gameState.water + (critical ? 2.6 : .55) * (1 - bilgeReduction));
       if (issue.type === "fuel") gameState.fuel = Math.max(0, gameState.fuel - (critical ? 2.8 : .35));
       if (issue.type === "engine") gameState.fuel = Math.max(0, gameState.fuel - (critical ? 1.5 : .2));
       if (issue.type === "barnacles") {
         gameState.fuel = Math.max(0, gameState.fuel - (critical ? 1.2 : .18));
         gameState.hull = Math.max(0, gameState.hull - (critical ? .8 : .1) * hullMitigation);
       }
+    }
+    if (gameState.fuel <= 50 && !gameState.issues.some((issue) => issue.type === "fuel")) {
+      makeIssue(["fuel"]);
     }
     if (gameState.water > 70) gameState.hull = Math.max(0, gameState.hull - (gameState.water > 90 ? 1.3 : .35) * hullMitigation);
 
@@ -1000,8 +1198,13 @@
         if (fish.timeLeft <= 0 && gameState.encounter) loseFish();
       }
     } else {
-      gameState.fishSpawnIn -= 1;
-      if (gameState.fishSpawnIn <= 0 && gameState.bait > 0 && !gameState.issues.some((issue) => issue.type === "harpoon")) spawnEncounter();
+      const fishingPaused = gameState.barnacleCleaning > 0 || gameState.ropeTangled;
+      if (fishingPaused) {
+        gameState.fishSpawnIn = Math.max(1, gameState.fishSpawnIn);
+      } else {
+        gameState.fishSpawnIn -= 1;
+        if (gameState.fishSpawnIn <= 0 && gameState.bait > 0 && !gameState.issues.some((issue) => issue.type === "harpoon")) spawnEncounter();
+      }
     }
 
     gameState.issueSpawnIn -= 1;
@@ -1010,11 +1213,11 @@
       gameState.issueSpawnIn = 14 + Math.floor(Math.random() * 9);
     }
 
-    if (gameState.depth >= gameState.nextCheckpoint) {
+    if (!gameState.checkpointOpen && gameState.depth >= gameState.nextCheckpoint) {
       gameState.checkpointOpen = true;
       sendNotice("Checkpoint reached! Trade your catch and refit the submarine.");
     }
-    if (gameState.hull <= 0) {
+    if (gameState.hull <= 0 && !gameState.ended) {
       gameState.ended = true;
       sendNotice("Hull breached — this voyage is over. Start a new run to try again.", true);
     }
@@ -1023,23 +1226,35 @@
   function catchFish() {
     if (!gameState.encounter) return;
     const rarity = rarityByKey[gameState.encounter.rarity];
-    const value = rarity.values?.[gameState.encounter.species] ?? rarity.min + Math.floor(Math.random() * (rarity.max - rarity.min + 1));
-    gameState.inventory.push({ rarity: rarity.key, species: gameState.encounter.species, value });
+    const species = gameState.encounter.species;
+    const value = rarity.values?.[species] ?? rarity.min + Math.floor(Math.random() * (rarity.max - rarity.min + 1));
+    gameState.inventory.push({ rarity: rarity.key, species, value });
+    gameState.collection ||= {};
+    gameState.collection[species] = (gameState.collection[species] || 0) + 1;
     gameState.caught += 1;
+    gameState.fishSinceCheckpoint = (gameState.fishSinceCheckpoint || 0) + 1;
+    playSfx(rarity.size >= 3 ? "rare" : "catch");
     gameState.pity ||= { legendary: 0, mythic: 0, treasure: 0 };
     gameState.pity.legendary = rarity.size >= 5 ? 0 : gameState.pity.legendary + 1;
     gameState.pity.mythic = rarity.size >= 6 ? 0 : gameState.pity.mythic + 1;
     gameState.pity.treasure = rarity.key === "treasure" ? 0 : gameState.pity.treasure + 1;
     gameState.encounter = null;
-    sendNotice(`${rarity.name} catch secured! Sell it at the next checkpoint.`);
+    sendNotice(`${species} (${rarity.name}) caught! Sell it at the next checkpoint.`);
+    if (gameState.fishSinceCheckpoint >= fishPerCheckpoint && !gameState.checkpointOpen) {
+      gameState.fishSinceCheckpoint = fishPerCheckpoint;
+      gameState.depth = Math.max(gameState.depth, gameState.nextCheckpoint);
+      gameState.checkpointOpen = true;
+      sendNotice(`${fishPerCheckpoint} fish secured — checkpoint reached! Trade and refit the submarine.`);
+    }
   }
 
   function loseFish() {
     if (!gameState.encounter) return;
     const rarity = rarityByKey[gameState.encounter.rarity];
-    const damage = Math.max(1, Math.round(rarity.size * 1.5 * (1 - Math.min(.65, gameState.upgrades.hull * .08))));
+    const damage = Math.max(1, Math.round(rarity.size * 1.5 * (1 - Math.min(.75, gameState.upgrades.hull * .08))));
     gameState.hull = Math.max(0, gameState.hull - damage);
     gameState.encounter = null;
+    playSfx("warning");
     if (Math.random() < .55) makeIssue();
     sendNotice(`The fish got away and struck the sub! Hull −${damage}%.`, true);
   }
@@ -1057,10 +1272,15 @@
 
   function applyAction(action, data, role) {
     if (!gameState) return;
-    const allowed = role === "fisher" ? ["cast", "reel", "rhythm", "aimMove", "aimPosition", "shoalMove", "shoalClick", "restart"] : ["repair", "sell", "upgrade", "buyBait", "checkpointContinue", "restart"];
+    const sharedPurchases = ["sell", "upgrade", "buyBait"];
+    const allowed = role === "fisher"
+      ? ["cast", "reel", "rhythm", "aimMove", "aimPosition", "shoalMove", "shoalClick", "cleanBarnacles", "scrapeBarnacle", "untangleRope", "checkpointContinue", ...sharedPurchases, "restart"]
+      : ["repair", "checkpointContinue", ...sharedPurchases, "restart"];
     if (!allowed.includes(action)) return;
     if (gameState.ended && action !== "restart") return;
-    if (role === "fisher" && action !== "restart" && gameState.issues.some((issue) => issue.type === "harpoon")) return;
+    const fishingActions = ["cast", "reel", "rhythm", "aimMove", "aimPosition", "shoalMove", "shoalClick"];
+    if (role === "fisher" && fishingActions.includes(action)
+      && (gameState.ropeTangled || gameState.barnacleCleaning > 0 || gameState.issues.some((issue) => issue.type === "harpoon"))) return;
     if (action === "restart") {
       if (!gameState.ended) return;
       gameState = initialState();
@@ -1071,6 +1291,7 @@
       if (fish && fish.stage === "bite" && !gameState.issues.some((issue) => issue.type === "harpoon")) {
         fish.stage = "hooked";
         fish.timeLeft = fish.type === "aim" ? 16 : 12;
+        playSfx("action");
         sendNotice(`${rarityByKey[fish.rarity].name} on the line!`);
       }
     } else if (action === "shoalMove" && role === "fisher") {
@@ -1131,23 +1352,54 @@
         fish.aim.x = Math.max(bounds.minX, Math.min(bounds.maxX, data.x));
         fish.aim.y = Math.max(bounds.minY, Math.min(bounds.maxY, data.y));
       }
+    } else if (action === "cleanBarnacles" && role === "fisher") {
+      if (gameState.barnacles < 1 || gameState.encounter || gameState.ropeTangled || gameState.barnacleCleaning > 0) return;
+      gameState.barnaclePositions = randomBarnaclePositions();
+      gameState.barnacleTargets = gameState.barnaclePositions.map((_, index) => index);
+      gameState.barnacleCleaning = gameState.barnacleTargets.length;
+      playSfx("action");
+      sendNotice("Barnacle cleanup started. Scrape every cluster to resume fishing.");
+    } else if (action === "scrapeBarnacle" && role === "fisher") {
+      if (gameState.barnacleCleaning <= 0 || !Number.isInteger(data.index) || !gameState.barnacleTargets.includes(data.index)) return;
+      gameState.barnacleTargets = gameState.barnacleTargets.filter((index) => index !== data.index);
+      gameState.barnacleCleaning = gameState.barnacleTargets.length;
+      playSfx("action");
+      if (gameState.barnacleCleaning === 0) {
+        gameState.barnacles = 0;
+        gameState.barnacleCritical = false;
+        gameState.barnaclePositions = [];
+        gameState.fishSpawnIn = 4 + Math.floor(Math.random() * 5);
+        sendNotice("All barnacle clusters scraped. The hull is clean and fishing can resume.");
+      }
+    } else if (action === "untangleRope" && role === "fisher") {
+      if (!gameState.ropeTangled) return;
+      gameState.ropeFixProgress += 1;
+      if (gameState.ropeFixProgress >= 5) {
+        gameState.ropeTangled = false;
+        gameState.ropeFixProgress = 0;
+        gameState.ropeTangleIn = 45 + Math.floor(Math.random() * 36);
+        gameState.fishSpawnIn = 4 + Math.floor(Math.random() * 5);
+        sendNotice("Fishing line untangled. Back to fishing!");
+      }
     } else if (action === "repair" && role === "engineer") {
       const issue = issueById(data.id);
       if (issue && issue.room === data.room && (mode === "host" && role !== localRole || selectedIssueId === issue.id)) applyRepair(issue, data);
-    } else if (action === "sell" && role === "engineer") {
+    } else if (action === "sell") {
       if (gameState.checkpointOpen && gameState.inventory.length) {
         const total = gameState.inventory.reduce((sum, fish) => sum + fish.value, 0);
         gameState.gold += total;
         gameState.inventory = [];
+        playSfx("sell");
         sendNotice(`Catch sold for ${total} gold.`);
       }
-    } else if (action === "upgrade" && role === "engineer") {
+    } else if (action === "upgrade") {
       buyUpgrade(data.key);
-    } else if (action === "buyBait" && role === "engineer") {
+    } else if (action === "buyBait") {
       buyBait();
-    } else if (action === "checkpointContinue" && role === "engineer" && gameState.checkpointOpen) {
+    } else if (action === "checkpointContinue" && gameState.checkpointOpen) {
       gameState.checkpointOpen = false;
-      gameState.nextCheckpoint += 250;
+      gameState.fishSinceCheckpoint = 0;
+      gameState.nextCheckpoint += checkpointDistance;
       sendNotice("Back underway. Keep an eye on those systems.");
     }
     render();
@@ -1194,7 +1446,10 @@
       if (issue.progress >= .97) finish();
     } else if (issue.type === "bolts") {
       if (data.mode !== "bolt" || !Number.isInteger(data.index) || data.index < 0 || data.index > 5) return;
-      if (!issue.bolts.includes(data.index)) issue.bolts.push(data.index);
+      if (issue.bolts.includes(data.index)) return;
+      issue.boltTurns ||= {};
+      issue.boltTurns[data.index] = Math.min(3, (issue.boltTurns[data.index] || 0) + 1);
+      if (issue.boltTurns[data.index] >= 3) issue.bolts.push(data.index);
       if (issue.bolts.length >= 6) finish();
     } else if (issue.type === "barnacles") {
       if (data.mode !== "scrape" || !Number.isInteger(data.index) || data.index < 0 || data.index >= issue.barnaclePositions.length) return;
@@ -1208,7 +1463,7 @@
       if (issue.step >= 3) finish();
     } else if (issue.type === "fuel" || issue.type === "water") {
       if (data.mode !== "pump") return;
-      issue.progress = Math.min(9, issue.progress + 1 + Math.floor(gameState.upgrades.bilge / 2));
+      issue.progress = Math.min(9, issue.progress + Math.min(3, 1 + Math.floor(gameState.upgrades.bilge / 2)));
       if (issue.progress >= 9) {
         if (issue.type === "fuel") gameState.fuel = Math.min(100, gameState.fuel + 26);
         else gameState.water = Math.max(0, gameState.water - 32);
@@ -1223,6 +1478,10 @@
 
   function buyUpgrade(key) {
     if (!gameState.checkpointOpen || !upgrades[key]) return;
+    if (gameState.upgrades[key] >= upgradeMaxLevels[key]) {
+      sendNotice(`${upgrades[key].name} is already at maximum level.`, true);
+      return;
+    }
     const cost = upgradeCost(key);
     if (gameState.gold < cost) {
       sendNotice(`Not enough gold — ${upgrades[key].name} costs ${cost}.`, true);
@@ -1231,6 +1490,7 @@
     gameState.gold -= cost;
     gameState.upgrades[key] += 1;
     gameState.purchases[key] += 1;
+    playSfx("repair");
     sendNotice(`${upgrades[key].name} upgraded to level ${gameState.upgrades[key]}. Next price rises by 5%.`);
   }
 
@@ -1248,6 +1508,7 @@
     gameState.gold -= cost;
     gameState.bait += 10;
     gameState.baitPurchases += 1;
+    playSfx("sell");
     sendNotice(`Restocked 10 bait for ${cost} G. The next restock price rises slowly.`);
   }
 
@@ -1263,6 +1524,32 @@
     button.textContent = text;
     for (const [key, value] of Object.entries(attributes)) button.dataset[key] = String(value);
     return button;
+  }
+
+  function makeBarnacleField(positions, actionAttributes, className = "") {
+    const field = document.createElement("div");
+    field.className = `barnacle-field${className ? ` ${className}` : ""}`;
+    const hull = document.createElement("div");
+    hull.className = "barnacle-hull";
+    hull.setAttribute("aria-hidden", "true");
+    const arm = document.createElement("div");
+    arm.className = "scraper-arm";
+    arm.innerHTML = '<span class="arm-claw"></span>';
+    field.append(hull, arm);
+    for (let index = 0; index < positions.length; index++) {
+      const target = makeButton("", { ...actionAttributes, index }, "mini-button barnacle-target");
+      target.setAttribute("aria-label", `Scrape barnacle cluster ${index + 1}`);
+      target.innerHTML = '<svg viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3 19 9l7-1-2 7 4 5-7 2-3 6-5-5-7 1 1-7-4-5 7-2z"/><circle cx="15" cy="15" r="4"/></svg>';
+      const [x, y] = positions[index];
+      target.style.left = `${x * 100}%`;
+      target.style.top = `${y * 100}%`;
+      field.append(target);
+    }
+    const armLabel = document.createElement("span");
+    armLabel.className = "scraper-label";
+    armLabel.textContent = "ROBOTIC SCRAPER";
+    field.append(armLabel);
+    return field;
   }
 
   function makeArrowIcon(key) {
@@ -1333,11 +1620,18 @@
     const harpoonOffline = gameState.issues.some((issue) => issue.type === "harpoon");
     el.harpoonWarning.classList.toggle("hidden", !harpoonOffline);
     if (!fish) {
+      el.fisherTimer.classList.add("hidden");
       el.swimmingFish.replaceChildren();
       el.encounterRarity.textContent = "SCANNING THE DEEP";
       el.encounterRarity.style.color = "";
       el.encounterTitle.textContent = "The water is quiet";
-      el.encounterCopy.textContent = "A new catch could appear at any moment.";
+      el.encounterCopy.textContent = gameState.ropeTangled
+        ? "Fishing is paused while the Fisher untangles the line."
+        : gameState.barnacleCleaning > 0
+          ? "Fishing is paused while the Fisher cleans the hull."
+          : gameState.bait > 0
+            ? "Next sonar contact expected in about 4–8 seconds."
+            : "No bait left. Restock at the next checkpoint.";
       el.fishingTaskTitle.textContent = "Standing by";
       el.fishingTaskHelp.textContent = "Watch for a bite and follow the on-screen challenge.";
       el.fishingActions.replaceChildren(makeButton("Waiting for a bite", {}, "action-button"));
@@ -1347,7 +1641,11 @@
       return;
     }
 
+    el.fisherTimer.classList.remove("hidden");
+    el.fisherTimer.querySelector("span").textContent = Math.max(0, Math.ceil(fish.timeLeft));
+    el.fisherTimer.classList.toggle("urgent", fish.timeLeft <= 5);
     const rarity = rarityByKey[fish.rarity] || rarityByKey.common;
+    const fishingPaused = gameState.ropeTangled || gameState.barnacleCleaning > 0;
     el.encounterRarity.textContent = rarity.name.toUpperCase();
     el.encounterRarity.style.color = fish.rarity === "treasure" || fish.rarity === "mythic" ? "var(--amber)" : "";
     el.encounterTitle.textContent = fish.stage === "bite" ? "Something is on the line!" : fish.species || rarity.species[0];
@@ -1369,7 +1667,7 @@
       const button = makeButton(isSharedControlMode() ? "CAST  ·  SPACE" : "Cast harpoon", {}, "action-button");
       button.dataset.fishing = "cast";
       if (harpoonOffline) button.textContent = "Harpoon offline";
-      button.disabled = !canFisherAct() || harpoonOffline || gameState.ended;
+      button.disabled = !canFisherAct() || harpoonOffline || fishingPaused || gameState.ended;
       el.fishingActions.append(button);
       if (harpoonOffline) {
         el.fishingTaskTitle.textContent = "Harpoon offline";
@@ -1381,7 +1679,7 @@
     if (fish.type === "shoal") {
       el.fishingTaskTitle.textContent = "Pick a fish from the shoal";
       el.fishingTaskHelp.textContent = isSharedControlMode()
-        ? "Use WASD to steer the cursor, then press Space when it overlaps a fish."
+        ? "Steer with WASD or mouse, then click a fish or press Space when the cursor overlaps it."
         : "Click a passing fish before the shoal swims out of reach.";
       const existing = new Map([...el.swimmingFish.children].map((button) => [Number(button.dataset.swimmer), button]));
       const visibleIndexes = new Set();
@@ -1399,7 +1697,7 @@
           swimmerButton.dataset.illustration = illustrationKey;
           swimmerButton.setAttribute("aria-label", `Catch ${swimmer.species}`);
         }
-        swimmerButton.disabled = harpoonOffline || isSharedControlMode() || !canFisherAct() || gameState.ended;
+        swimmerButton.disabled = harpoonOffline || fishingPaused || !canFisherAct() || gameState.ended;
         swimmerButton.style.left = `${swimmer.x * 100}%`;
         swimmerButton.style.top = `${swimmer.y * 100}%`;
         swimmerButton.classList.toggle("swimming-left", swimmer.direction < 0);
@@ -1418,7 +1716,7 @@
       el.swimmingFish.replaceChildren();
       el.fishingTaskTitle.textContent = "Keep the aim steady";
       el.fishingTaskHelp.textContent = isSharedControlMode()
-        ? "Fisher: use WASD to keep the dot inside the drifting ring."
+        ? "Fisher: use WASD or move the mouse to keep the dot inside the drifting ring."
         : "Move the dot into the drifting ring and hold it there. Use mouse or WASD / arrows.";
       target.classList.remove("hidden");
       dot.classList.remove("hidden");
@@ -1441,8 +1739,8 @@
         span.append(makeArrowIcon(key));
         span.setAttribute("aria-label", `Direction ${arrowNames[key]}`);
         span.setAttribute("role", "button");
-        span.tabIndex = canFisherAct() && !harpoonOffline ? 0 : -1;
-        span.setAttribute("aria-disabled", String(harpoonOffline));
+        span.tabIndex = canFisherAct() && !harpoonOffline && !fishingPaused ? 0 : -1;
+        span.setAttribute("aria-disabled", String(harpoonOffline || fishingPaused));
         span.dataset.fishing = "rhythm";
         span.dataset.key = key;
         keys.append(span);
@@ -1454,12 +1752,12 @@
       el.fishingTaskHelp.textContent = "Tap fast or press Space to keep the fish on the line.";
       const button = makeButton("REEL  ·  SPACE", {}, "action-button");
       button.dataset.fishing = "reel";
-      button.disabled = !canFisherAct() || harpoonOffline || gameState.ended;
+      button.disabled = !canFisherAct() || harpoonOffline || fishingPaused || gameState.ended;
       el.fishingActions.append(button, document.createRange().createContextualFragment(progressMarkup(fish.progress, fish.needed)));
     }
-    if (harpoonOffline) {
-      el.fishingTaskTitle.textContent = "Harpoon offline";
-      el.fishingTaskHelp.textContent = "Fishing is locked until the harpoon is repaired.";
+    if (harpoonOffline || fishingPaused) {
+      el.fishingTaskTitle.textContent = harpoonOffline ? "Harpoon offline" : "Fishing paused";
+      el.fishingTaskHelp.textContent = harpoonOffline ? "Fishing is locked until the harpoon is repaired." : "Clear the line knot or finish cleaning the hull to resume.";
       el.fishingActions.querySelectorAll("[data-fishing], [data-swimmer], [role='button']").forEach((control) => {
         control.setAttribute("aria-disabled", "true");
         if ("disabled" in control) control.disabled = true;
@@ -1501,16 +1799,17 @@
       const desc = document.createElement("span");
       desc.textContent = issueInfo[issue.type].description;
       details.append(location, name, desc);
+      const timer = document.createElement("span");
+      timer.className = `mission-timer${critical ? " urgent" : ""}`;
+      timer.textContent = `${Math.max(0, issue.secondsLeft)}s`;
       const open = makeButton("Repair", { issue: issue.id }, "action-button");
       open.disabled = !canEngineerAct() || gameState.ended;
-      row.append(details, open);
+      row.append(details, timer, open);
       if (critical) {
         const label = document.createElement("span");
         label.className = "danger-label";
-        label.textContent = `CRITICAL · ${Math.max(0, issue.secondsLeft)}s`;
+        label.textContent = "CRITICAL";
         row.append(label);
-      } else {
-        desc.textContent += ` · ${issue.secondsLeft}s`;
       }
       el.missionList.append(row);
     }
@@ -1519,6 +1818,7 @@
   function renderRepair() {
     const issue = selectedIssueId && issueById(selectedIssueId);
     if (!issue) {
+      el.repairTimer.classList.add("hidden");
       resetRepairPanel();
       el.repairRoomLabel.textContent = gameState.issues.length ? "REPAIR DESK" : "STANDBY";
       el.repairTitle.textContent = gameState.issues.length ? "Choose a system fault" : "All systems quiet";
@@ -1543,6 +1843,9 @@
       return;
     }
     el.repairPanel.classList.remove("hidden");
+    el.repairTimer.classList.remove("hidden");
+    el.repairTimer.classList.toggle("urgent", issue.secondsLeft <= 10);
+    el.repairTimer.textContent = `${Math.max(0, issue.secondsLeft)}s`;
     el.repairRoomLabel.textContent = issue.room.toUpperCase();
     el.repairTitle.textContent = issueInfo[issue.type].name;
     el.repairInstructions.textContent = issueInfo[issue.type].instructions;
@@ -1603,7 +1906,7 @@
       } else if (issue.type === "valve") {
         const valve = makeButton("", { repair: "turn" }, "mini-button valve-button");
         valve.setAttribute("aria-label", "Turn the valve");
-        valve.innerHTML = '<span class="valve-wheel" aria-hidden="true">✣</span><span>TURN VALVE</span>';
+        valve.innerHTML = '<span class="valve-wheel" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 3v34M3 20h34M8 8l24 24M32 8 8 32"/><circle cx="20" cy="20" r="4"/></svg></span><span>TURN VALVE</span>';
         el.repairChallenge.append(valve);
       } else if (issue.type === "weld") {
         const track = document.createElement("div");
@@ -1631,7 +1934,8 @@
         const field = document.createElement("div");
         field.className = "bolt-field";
         for (let index = 0; index < 6; index++) {
-          const bolt = makeButton("✣", { repair: "bolt", index }, "mini-button bolt-button");
+          const bolt = makeButton("", { repair: "bolt", index }, "mini-button bolt-button");
+          bolt.innerHTML = '<span class="bolt-screw" aria-hidden="true">✣</span><small class="bolt-turn-count"></small>';
           const [x, y] = issue.boltPositions[index];
           bolt.style.left = `${x * 100}%`;
           bolt.style.top = `${y * 100}%`;
@@ -1640,29 +1944,7 @@
         }
         el.repairChallenge.append(field);
       } else if (issue.type === "barnacles") {
-        const field = document.createElement("div");
-        field.className = "barnacle-field";
-        const hull = document.createElement("div");
-        hull.className = "barnacle-hull";
-        hull.setAttribute("aria-hidden", "true");
-        const arm = document.createElement("div");
-        arm.className = "scraper-arm";
-        arm.innerHTML = '<span class="arm-claw"></span>';
-        const armLabel = document.createElement("span");
-        armLabel.className = "scraper-label";
-        armLabel.textContent = "ROBOTIC SCRAPER";
-        field.append(hull, arm);
-        for (let index = 0; index < issue.barnaclePositions.length; index++) {
-          const target = makeButton("", { repair: "scrape", index }, "mini-button barnacle-target");
-          target.setAttribute("aria-label", `Scrape barnacle cluster ${index + 1}`);
-          target.innerHTML = '<svg viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3 19 9l7-1-2 7 4 5-7 2-3 6-5-5-7 1 1-7-4-5 7-2z"/><circle cx="15" cy="15" r="4"/></svg>';
-          const [x, y] = issue.barnaclePositions[index];
-          target.style.left = `${x * 100}%`;
-          target.style.top = `${y * 100}%`;
-          field.append(target);
-        }
-        field.append(armLabel);
-        el.repairChallenge.append(field);
+        el.repairChallenge.append(makeBarnacleField(issue.barnaclePositions, { repair: "scrape" }));
       } else if (issue.type === "harpoon") {
         const steps = ["Remove", "Replace", "Reload"];
         for (let index = 0; index < steps.length; index++) el.repairChallenge.append(makeButton(steps[index], { repair: "harpoon", step: index }));
@@ -1687,8 +1969,10 @@
     }
     const progress = el.repairChallenge.querySelector(".repair-progress i");
     if (progress) {
-      const max = issue.type === "sequence" ? issue.pattern.length : issue.type === "engine" ? issue.pattern.length : issue.type === "valve" ? 8 : issue.type === "bolts" ? 6 : issue.type === "barnacles" ? 8 : issue.type === "harpoon" ? 3 : issue.type === "weld" ? 1 : issue.type === "alignment" ? 90 : 9;
-      const value = issue.type === "sequence" || issue.type === "engine" || issue.type === "harpoon" ? issue.step : issue.type === "bolts" ? issue.bolts.length : issue.type === "barnacles" ? 8 - issue.barnacles.length : issue.type === "alignment" ? max - Math.abs(issue.angle) : issue.progress;
+      const max = issue.type === "sequence" ? issue.pattern.length : issue.type === "engine" ? issue.pattern.length : issue.type === "valve" ? 8 : issue.type === "bolts" ? 18 : issue.type === "barnacles" ? 8 : issue.type === "harpoon" ? 3 : issue.type === "weld" ? 1 : issue.type === "alignment" ? 90 : 9;
+      const boltTurns = issue.boltTurns || {};
+      const completedTurns = Object.values(boltTurns).reduce((sum, turns) => sum + Math.min(3, turns), 0);
+      const value = issue.type === "sequence" || issue.type === "engine" || issue.type === "harpoon" ? issue.step : issue.type === "bolts" ? completedTurns : issue.type === "barnacles" ? 8 - issue.barnacles.length : issue.type === "alignment" ? max - Math.abs(issue.angle) : issue.progress;
       progress.style.width = `${Math.max(0, Math.min(100, value / max * 100))}%`;
     }
     const submarine = el.repairChallenge.querySelector(".alignment-sub");
@@ -1710,8 +1994,13 @@
       scraperArm.style.transform = `rotate(${angle}rad)`;
     }
     el.repairChallenge.querySelectorAll("[data-repair='bolt']").forEach((button) => {
-      const complete = issue.bolts.includes(Number(button.dataset.index));
+      const index = Number(button.dataset.index);
+      const turns = Math.min(3, issue.boltTurns?.[index] || 0);
+      const complete = issue.bolts.includes(index);
       button.classList.toggle("done", complete);
+      button.querySelector(".bolt-screw").style.transform = `rotate(${turns * 120}deg)`;
+      button.querySelector(".bolt-turn-count").textContent = complete ? "✓" : `${turns}/3`;
+      button.title = complete ? `Bolt ${index + 1} secured` : `Turn bolt ${index + 1} · ${3 - turns} left`;
       button.disabled = complete || !canEngineerAct() || gameState.ended;
     });
     el.repairChallenge.querySelectorAll("button[data-repair]").forEach((button) => {
@@ -1747,13 +2036,13 @@
     if (!open) delete el.shopPanel.dataset.open;
     const total = gameState.inventory.reduce((sum, fish) => sum + fish.value, 0);
     el.inventoryValue.textContent = `+${total} ◈`;
-    el.sellButton.disabled = !open || total === 0 || !canEngineerAct() || gameState.ended;
+    el.sellButton.disabled = !open || total === 0 || gameState.ended;
     const species = [...new Set(gameState.inventory.map((fish) => fish.species).filter(Boolean))];
     el.inventoryCopy.textContent = gameState.inventory.length
       ? `${gameState.inventory.length} fish in the hold${species.length ? ` · ${species.join(", ")}` : ""}. Sell the haul to fund crew upgrades.`
       : "Your hold is empty. Catch fish to sell them for gold.";
     el.buyBait.textContent = `Restock 10 bait · ${baitPrice()} G`;
-    el.buyBait.disabled = !open || gameState.gold < baitPrice() || !canEngineerAct() || gameState.ended;
+    el.buyBait.disabled = !open || gameState.gold < baitPrice() || gameState.ended;
     el.upgradeList.replaceChildren();
     for (const [key, item] of Object.entries(upgrades)) {
       const card = document.createElement("div");
@@ -1762,15 +2051,111 @@
       name.textContent = `${item.name} · Lv ${gameState.upgrades[key]}`;
       const description = document.createElement("small");
       description.textContent = item.description;
-      const buy = makeButton(`Buy · ${upgradeCost(key)} ◈`, { upgrade: key }, "");
-      buy.disabled = !open || gameState.gold < upgradeCost(key) || !canEngineerAct() || gameState.ended;
+      const maxed = gameState.upgrades[key] >= upgradeMaxLevels[key];
+      const buy = makeButton(maxed ? "MAX LEVEL" : `Buy · ${upgradeCost(key)} ◈`, { upgrade: key }, "");
+      buy.disabled = !open || maxed || gameState.gold < upgradeCost(key) || gameState.ended;
       card.append(name, description, buy);
       el.upgradeList.append(card);
     }
   }
 
+  function renderFishCollection() {
+    if (el.fishLogPanel.classList.contains("hidden")) return;
+    const collection = gameState.collection || {};
+    const signature = Object.keys(collection).sort().map((species) => `${species}:${collection[species]}`).join("|");
+    if (signature === fishCollectionSignature) return;
+    fishCollectionSignature = signature;
+    const discovered = Object.values(collection).filter((count) => count > 0).length;
+    el.fishLogSummary.textContent = `${discovered} of ${rarityData.reduce((total, rarity) => total + rarity.species.length, 0)} species discovered this voyage.`;
+    el.fishCollection.replaceChildren();
+    for (const rarity of rarityData) {
+      for (const species of rarity.species) {
+        const count = collection[species] || 0;
+        const entry = document.createElement("article");
+        entry.className = `collection-entry${count ? " discovered" : ""}`;
+        const art = document.createElement("span");
+        art.className = "collection-art";
+        art.innerHTML = fishIllustration(species, rarity.key);
+        art.setAttribute("aria-hidden", "true");
+        const details = document.createElement("span");
+        details.className = "collection-details";
+        const name = document.createElement("b");
+        name.textContent = species;
+        const metadata = document.createElement("small");
+        metadata.textContent = `${rarity.name} · ${count ? `Caught ${count}` : "Not caught yet"}`;
+        details.append(name, metadata);
+        entry.append(art, details);
+        el.fishCollection.append(entry);
+      }
+    }
+  }
+
+  function renderFisherActivity() {
+    const barnacles = gameState.barnacles || 0;
+    el.barnacleValue.textContent = `${Math.floor(barnacles)}%`;
+    el.barnacleMeter.style.width = `${Math.min(100, barnacles)}%`;
+    el.barnacleMeter.classList.toggle("danger-fill", barnacles >= 60);
+    if (gameState.ropeTangled) {
+      el.fisherActivityStatus.textContent = `Fishing paused · untangle the line (${gameState.ropeFixProgress || 0}/5).`;
+      el.fisherActivityButton.textContent = `Untangle Line · ${gameState.ropeFixProgress || 0}/5`;
+      el.fisherActivityButton.dataset.activity = "untangle";
+      el.fisherActivityButton.disabled = !canFisherAct() || gameState.ended;
+    } else if (gameState.barnacleCleaning > 0) {
+      el.fisherActivityStatus.textContent = `Cleaning barnacles · ${gameState.barnacleCleaning} clusters left. Fishing is paused.`;
+      el.fisherActivityButton.textContent = `Cleaning · ${gameState.barnacleCleaning} left`;
+      el.fisherActivityButton.dataset.activity = "clean";
+      el.fisherActivityButton.disabled = true;
+    } else {
+      el.fisherActivityStatus.textContent = gameState.encounter
+        ? `Finish this catch, then clean the hull${barnacles >= 60 ? " now — hull damage is accelerating" : " before 60%"}.`
+        : barnacles >= 60
+          ? "HULL DAMAGE ACCELERATING · Clean the barnacles before they reach 100%."
+          : "Barnacles build by 1% every 1.5 seconds. Clean them before 60%.";
+      el.fisherActivityButton.textContent = "Clean Barnacles";
+      el.fisherActivityButton.dataset.activity = "clean";
+      el.fisherActivityButton.disabled = !canFisherAct() || gameState.ended || barnacles < 1 || Boolean(gameState.encounter);
+    }
+  }
+
+  function renderBarnacleCleanup() {
+    const active = gameState.barnacleCleaning > 0;
+    el.barnacleCleanupOverlay.classList.toggle("hidden", !active);
+    if (!active) {
+      barnacleCleanupSignature = "";
+      el.barnacleCleanupField.replaceChildren();
+      return;
+    }
+
+    const signature = gameState.barnaclePositions.map(([x, y]) => `${x},${y}`).join("|");
+    if (signature !== barnacleCleanupSignature) {
+      barnacleCleanupSignature = signature;
+      el.barnacleCleanupField.replaceChildren(
+        makeBarnacleField(gameState.barnaclePositions, { cleanupBarnacle: true }, "cleanup-field")
+      );
+    }
+    el.barnacleCleanupProgress.textContent = `${gameState.barnacleCleaning} / ${gameState.barnaclePositions.length} CLUSTERS LEFT`;
+    const remaining = new Set(gameState.barnacleTargets);
+    el.barnacleCleanupField.querySelectorAll("[data-cleanup-barnacle]").forEach((button) => {
+      const activeTarget = remaining.has(Number(button.dataset.index));
+      button.classList.toggle("scraped", !activeTarget);
+      button.disabled = !activeTarget || gameState.ended;
+    });
+    const arm = el.barnacleCleanupField.querySelector(".scraper-arm");
+    const [x, y] = gameState.barnaclePositions[gameState.barnacleTargets[0]] || [];
+    if (arm && Number.isFinite(x) && Number.isFinite(y)) {
+      const rect = el.barnacleCleanupField.getBoundingClientRect();
+      arm.style.transform = `rotate(${Math.atan2((y - .84) * rect.height, (x - .1) * rect.width)}rad)`;
+    }
+  }
+
   function render() {
     if (!gameState) return;
+    gameState.collection ||= {};
+    const lowFuelIssue = gameState.issues.find((issue) => issue.type === "fuel");
+    if (canEngineerAct() && lowFuelIssue && gameState.fuel <= 50 && selectedIssueId !== lowFuelIssue.id) {
+      selectedIssueId = lowFuelIssue.id;
+      repairSignature = "";
+    }
     el.roleBadge.textContent = mode === "local" ? "LOCAL CREW" : mode === "solo" ? "SOLO PILOT" : localRole.toUpperCase();
     el.fisherOwner.textContent = mode === "local"
       ? `LOCAL PLAYER ${localFisherPlayer}`
@@ -1794,7 +2179,12 @@
     el.gold.textContent = Math.floor(gameState.gold);
     el.caughtCount.textContent = gameState.caught;
     el.checkpointDistance.textContent = Math.max(0, gameState.nextCheckpoint - Math.floor(gameState.depth));
-    el.progressMeter.style.width = `${Math.min(100, (gameState.depth % 250) / 250 * 100)}%`;
+    el.checkpointFishProgress.textContent = gameState.checkpointOpen
+      ? "CHECKPOINT READY"
+      : `${Math.min(fishPerCheckpoint, gameState.fishSinceCheckpoint || 0)}/${fishPerCheckpoint} FISH`;
+    const legStart = gameState.nextCheckpoint - checkpointDistance;
+    const legProgress = Math.max(0, Math.min(1, (gameState.depth - legStart) / checkpointDistance));
+    el.progressMeter.style.width = `${(gameState.checkpointOpen ? 1 : legProgress) * 100}%`;
     el.hullValue.textContent = `${Math.round(gameState.hull)}%`;
     el.hullMeter.style.width = `${Math.max(0, gameState.hull)}%`;
     el.fuelValue.textContent = `${Math.round(gameState.fuel)}%`;
@@ -1804,18 +2194,24 @@
     $(".system-meter").classList.toggle("danger", gameState.hull < 30);
     document.querySelector(".fisher-station").classList.toggle("smoke-active", gameState.issues.some((issue) => issue.type === "valve"));
     const criticalIssues = gameState.issues.filter((issue) => issue.secondsLeft <= 10).length;
-    el.systemNote.textContent = gameState.ended ? "HULL BREACHED · VOYAGE OVER" : criticalIssues ? `${criticalIssues} CRITICAL SYSTEM${criticalIssues === 1 ? "" : "S"} · REPAIR NOW` : gameState.issues.some((issue) => issue.type === "valve") ? "Gas leak · valve repair needed" : gameState.issues.some((issue) => issue.type === "harpoon") ? "Harpoon offline" : gameState.water > 55 ? "Bilge water rising" : gameState.issues.length ? `${gameState.issues.length} system issue${gameState.issues.length === 1 ? "" : "s"} active` : "All systems nominal";
+    el.systemNote.textContent = gameState.ended ? "HULL BREACHED · VOYAGE OVER" : gameState.barnacles >= 60 ? "BARNACLES CRITICAL · CLEAN NOW" : criticalIssues ? `${criticalIssues} CRITICAL SYSTEM${criticalIssues === 1 ? "" : "S"} · REPAIR NOW` : gameState.issues.some((issue) => issue.type === "valve") ? "Gas leak · valve repair needed" : gameState.issues.some((issue) => issue.type === "harpoon") ? "Harpoon offline" : gameState.water > 55 ? "Bilge water rising" : gameState.issues.length ? `${gameState.issues.length} system issue${gameState.issues.length === 1 ? "" : "s"} active` : "All systems nominal";
     el.quickChat.classList.toggle("hidden", mode !== "host" && mode !== "client");
+    $(".crew-comms").classList.toggle("hidden", mode !== "host" && mode !== "client");
     const assets = window.CCM_ASSETS || {};
     setImage(el.subImage, el.subFallback, assets.submarine);
     el.crewMessage.textContent = gameState.ended ? "Hull breached. Start a new voyage to play again." : gameState.issues.length ? `${gameState.issues.length} issue${gameState.issues.length === 1 ? "" : "s"} need attention` : gameState.encounter ? "A catch is on the line — work together!" : gameState.checkpointOpen ? "Checkpoint reached — sell and upgrade before the next leg." : "A good crew keeps talking.";
     $("#game-over").classList.toggle("hidden", !gameState.ended);
+    $("#game-over b").textContent = gameState.barnacles >= 100 ? "Barnacles overwhelmed the hull." : "The hull couldn't take any more.";
     renderFishing();
+    renderFisherActivity();
+    renderBarnacleCleanup();
     renderRooms();
     renderRepair();
     renderShop();
+    renderFishCollection();
     document.querySelector(".fisher-station").classList.toggle("station-inactive", localRole !== "fisher" && !isSharedControlMode());
     document.querySelector(".engineer-station").classList.toggle("station-inactive", localRole !== "engineer" && !isSharedControlMode());
+    el.fishLogButton.classList.toggle("hidden", mode === "lobby");
     el.fisherUpgradeSummary.textContent = `Harpoon winch ${roman(gameState.upgrades.harpoon + 1)}`;
     const fisherSub = document.createElement("span");
     fisherSub.textContent = "Reel-in bonus active";
@@ -1865,7 +2261,7 @@
           sendAction("shoalClick", {}, "fisher");
         }
         const shoalMoves = {
-          w: [0, -.045], a: [-.045, 0], s: [0, .045], d: [.045, 0]
+            w: [0, -.035], a: [-.035, 0], s: [0, .035], d: [.035, 0]
         };
         const move = isSharedControlMode() ? shoalMoves[event.key.toLowerCase()] : null;
         if (move && Date.now() - lastShoalMoveSent > 45) {
@@ -1903,16 +2299,24 @@
   }
 
   function handleOceanPointer(event) {
-    if (isSharedControlMode() || !canFisherAct() || !gameState || !gameState.encounter || gameState.encounter.type !== "aim" || gameState.encounter.stage !== "hooked") return;
-    if (Date.now() - lastAimSent < 45) return;
-    lastAimSent = Date.now();
+    const fish = gameState?.encounter;
+    if (!canFisherAct() || !fish || fish.stage !== "hooked" || gameState.ropeTangled || gameState.barnacleCleaning > 0
+      || gameState.issues.some((issue) => issue.type === "harpoon")) return;
+    if (Date.now() - lastOceanPointerSent < 35) return;
+    lastOceanPointerSent = Date.now();
     const rect = el.oceanScene.getBoundingClientRect();
-    sendAction("aimPosition", { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }, "fisher");
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    if (fish.type === "aim") {
+      sendAction("aimPosition", { x, y }, "fisher");
+    } else if (fish.type === "shoal" && isSharedControlMode()) {
+      sendAction("shoalMove", { dx: x - fish.cursor.x, dy: y - fish.cursor.y }, "fisher");
+    }
   }
 
   function handleOceanClick(event) {
     const swimmer = event.target.closest("[data-swimmer]");
-    if (!swimmer || isSharedControlMode() || !canFisherAct() || gameState.ended) return;
+    if (!swimmer || !canFisherAct() || gameState.ended) return;
     sendAction("shoalClick", { index: Number(swimmer.dataset.swimmer) }, "fisher");
   }
 
@@ -1943,6 +2347,14 @@
   }
 
   function bindEvents() {
+    document.addEventListener("pointerdown", unlockAudio, { capture: true, once: true });
+    document.addEventListener("keydown", unlockAudio, { capture: true, once: true });
+    document.addEventListener("click", (event) => {
+      if (event.target.closest("button:not(:disabled)")) playSfx("click");
+    });
+    [el.menuMusic, el.engineSound].forEach((audio) => audio.addEventListener("error", () => {
+      toast(`Could not load ${audio.getAttribute("src")}.`, true);
+    }));
     el.menuTabs.addEventListener("click", (event) => {
       const selectedTab = event.target.closest("[data-menu]");
       if (!selectedTab) return;
@@ -1991,6 +2403,14 @@
       const button = event.target.closest("[data-chat]");
       if (button) sendQuickChat(button.dataset.chat);
     });
+    el.fisherActivityButton.addEventListener("click", () => {
+      if (el.fisherActivityButton.dataset.activity === "untangle") sendAction("untangleRope", {}, "fisher");
+      else sendAction("cleanBarnacles", {}, "fisher");
+    });
+    el.barnacleCleanupField.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-cleanup-barnacle]");
+      if (target) sendAction("scrapeBarnacle", { index: Number(target.dataset.index) }, "fisher");
+    });
     el.missionList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-issue]");
       if (!button || !canEngineerAct()) return;
@@ -2025,15 +2445,21 @@
       el.shopPanel.classList.remove("hidden");
     });
     el.closeShop.addEventListener("click", () => {
-      el.shopPanel.classList.remove("hidden");
+      el.shopPanel.classList.add("hidden");
+      delete el.shopPanel.dataset.open;
       sendAction("checkpointContinue", {}, "engineer");
     });
     el.sellButton.addEventListener("click", () => sendAction("sell", {}, "engineer"));
     el.buyBait.addEventListener("click", () => sendAction("buyBait", {}, "engineer"));
     el.upgradeList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-upgrade]");
-      if (button && canEngineerAct()) sendAction("upgrade", { key: button.dataset.upgrade }, "engineer");
+      if (button) sendAction("upgrade", { key: button.dataset.upgrade }, "engineer");
     });
+    el.fishLogButton.addEventListener("click", () => {
+      el.fishLogPanel.classList.toggle("hidden");
+      if (!el.fishLogPanel.classList.contains("hidden")) renderFishCollection();
+    });
+    el.closeFishLog.addEventListener("click", () => el.fishLogPanel.classList.add("hidden"));
     window.addEventListener("keydown", handleKeyboard);
   }
 

@@ -10,7 +10,7 @@ Open `index.html` from a static web host such as GitHub Pages. The **Play** menu
 - **Local co-op:** Two players share one device and choose Fisher or Engineer before the story begins. Player 1 picks first; Player 2 takes the remaining station. The Fisher uses WASD and Space; the Engineer uses the arrow keys and mouse.
 - **Solo dive:** One player handles both stations using the local controls.
 
-Every expedition opens with a short family-log cutscene. During the dive, the Fisher can hook fish through aim, rhythm, reel, and shoal encounters; the Engineer handles system faults, including a robotic-arm barnacle scraper. Online crews can send preset quick-chat messages.
+Every expedition opens with a short family-log cutscene. During the dive, the Fisher can hook fish through aim, rhythm, reel, and shoal encounters, clean barnacles, and untangle the fishing line; the Engineer handles system faults. Online crews can send preset quick-chat messages and negotiate checkpoint purchases. The Fisher and Engineer see only their own station during online play, while both can use the shared shop.
 
 ## Deploy the online relay
 
@@ -24,18 +24,23 @@ Room codes and connections are held in memory; redeploying or restarting the rel
 
 ### Controls
 
-- **Local Fisher:** WASD to steer during aim and shoal challenges and match rhythm cues; Space casts, reels, or catches a fish under the shoal cursor.
+- **Local Fisher:** WASD or mouse to guide the cursor during aim and shoal challenges; click a passing shoal fish directly or overlap it with the cursor and press Space. WASD also matches rhythm cues.
+- **Fisher activities:** clean barnacles before they reach 60%; the temporary hull-cleaning screen pauses fishing and requires clicking all eight clusters. At 60% hull damage accelerates, and 100% ends the voyage. If the line tangles, click **Untangle Line** five times. Fish encounters pause during either task, and fish spawn roughly every 4–8 seconds while the line and hull are clear.
 - **Local Engineer:** use the arrow keys for alignment/engine challenges and the mouse or left click for the repair board and tools.
 - **Online Fisher:** WASD or arrow keys to steer during aim challenges, mouse to position the aim dot or click shoal fish, arrow keys during rhythm challenges, and Space (or the on-screen button) to cast or reel.
-- **Online Engineer:** all active repairs appear together on the systems board. Open a repair, then follow its on-screen instructions; alignment uses left/right arrows, pump controls and barnacle targets are clickable, and welding requires tracing the seam with a press-and-drag. Quick chat is available below the stations.
+- **Online Engineer:** active repairs appear together on the systems board with larger countdowns. Open a repair and follow its instructions; turn each loose hull bolt three times, alignment uses left/right arrows, pump controls are clickable, and welding requires tracing the seam with a press-and-drag. At 50% fuel, a fuel-line mission appears and opens automatically for the Engineer.
 - **Online crew:** Both players choose a station before the story begins. The first accepted choice reserves that station; the other player chooses the remaining one.
 - **Solo:** Use the local Fisher and Engineer controls to run both stations.
 
+The main-menu **Credits** section lists the developers, tools, and hosting services. The in-game **Fish collection** records the species caught during the current voyage.
+
 ### Expedition loop
 
-Each fishing encounter consumes one bait. Restock ten bait for 5 gold at checkpoints; the price rises slowly over repeated purchases. Catch fish and carry them to a 250-meter checkpoint to sell for crew gold. Spend gold on shared hull, harpoon, lure, fuel, bilge, and bait supplies. Each upgrade purchase raises that upgrade's next price by 5%. Missed catches can damage the hull and create new repairs; critical system faults rapidly drain their associated hull, fuel, or bilge resources until repaired. A breached hull ends the voyage.
+Each fishing encounter consumes one bait. A checkpoint opens after five catches in a leg or at 150 meters, whichever comes first; catches can therefore bring the crew to a checkpoint early. Restock ten bait for 5 gold at checkpoints; the price rises slowly over repeated purchases. Sell the haul for crew gold, then spend it on shared hull, harpoon, lure, fuel, and bilge upgrades. At the current rarity weights, five catches average about 159 gold before upgrades, compared with 155 gold for one first-level purchase of each upgrade; actual hauls vary widely. Upgrade prices rise by 5% after each purchase, and every upgrade has a useful maximum level. Hull and bilge upgrades can reduce their related damage or buildup by up to 75%; the engine reduces routine fuel burn by up to 75%; the harpoon cuts reel inputs from 17 to 8; and the lure changes normalized rarity odds (Legendary about 4.4% to 7.9%, Mythic 0.44% to 0.91%, Treasure 0.0022% to 0.0058% from level 0 to 5). Missed catches can damage the hull and create new repairs; critical system faults rapidly drain their associated hull, fuel, or bilge resources until repaired. A breached hull ends the voyage.
 
 The expedition includes the species listed in [`Fish.txt`](./Fish.txt), with each rarity's species priced from cheapest to most expensive in listed order and illustrated with procedural species art. After 1,000 catches without a Legendary, 5,000 without a Mythic, or 12,500 without Treasure, pity guarantees that rarity on the next encounter. The supplied rarity weights are normalized into a weighted roll; the lure upgrade improves the odds of higher rarities.
+
+The menu and dive use the supplied music in `music/`; browser audio starts after the first user interaction. The in-game engine track is filtered to sound muffled underwater, with synthesized sound effects for controls, fishing, catches, repairs, and trading.
 
 ## Artwork and future changes
 

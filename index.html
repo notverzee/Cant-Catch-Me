@@ -12,6 +12,18 @@
   <script defer src="game.js"></script>
 </head>
 <body>
+  <div class="ambient-bubbles" aria-hidden="true">
+    <i style="--bubble-x:8%;--bubble-size:7px;--bubble-duration:22s;--bubble-delay:-9s"></i>
+    <i style="--bubble-x:19%;--bubble-size:4px;--bubble-duration:28s;--bubble-delay:-19s"></i>
+    <i style="--bubble-x:33%;--bubble-size:9px;--bubble-duration:25s;--bubble-delay:-3s"></i>
+    <i style="--bubble-x:47%;--bubble-size:5px;--bubble-duration:31s;--bubble-delay:-15s"></i>
+    <i style="--bubble-x:61%;--bubble-size:8px;--bubble-duration:24s;--bubble-delay:-20s"></i>
+    <i style="--bubble-x:74%;--bubble-size:4px;--bubble-duration:27s;--bubble-delay:-6s"></i>
+    <i style="--bubble-x:88%;--bubble-size:10px;--bubble-duration:30s;--bubble-delay:-24s"></i>
+    <i style="--bubble-x:96%;--bubble-size:5px;--bubble-duration:23s;--bubble-delay:-12s"></i>
+  </div>
+  <audio id="menu-music" src="music/menumusic.mp3" loop preload="auto"></audio>
+  <audio id="engine-sound" src="music/enginesound.mp3" loop preload="auto"></audio>
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Can't Catch Me home">
@@ -35,6 +47,9 @@
         </button>
         <button class="menu-tab" id="menu-controls-tab" type="button" role="tab" aria-selected="false" aria-controls="menu-controls" data-menu="menu-controls">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h4m-2-2v4m4-1h.01M16 9h.01M15 13h.01M18 13h.01M9 15h6"/></svg><span>Controls</span><small>03</small>
+        </button>
+        <button class="menu-tab" id="menu-credits-tab" type="button" role="tab" aria-selected="false" aria-controls="menu-credits" data-menu="menu-credits">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m6-14H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg><span>Credits</span><small>04</small>
         </button>
         <div class="nav-status"><span class="status-dot"></span><span>ONLINE CHANNEL</span></div>
       </nav>
@@ -83,9 +98,28 @@
           </section>
           <section class="menu-page controls-page hidden" id="menu-controls" role="tabpanel" aria-labelledby="menu-controls-tab">
             <div class="panel-heading"><span class="eyebrow">CREW MANUAL</span><span class="panel-index">INPUT GUIDE</span></div>
-            <div class="control-card"><span class="control-icon">WASD</span><div><b>FISHER</b><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> steer · <kbd>SPACE</kbd> cast / reel</p></div></div>
-            <div class="control-card"><span class="control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m-9-9h18M5.6 5.6l12.8 12.8m0-12.8L5.6 18.4"/></svg></span><div><b>REPAIRER</b><p><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> alignment / engine · mouse to select and repair</p></div></div>
+            <div class="control-card"><span class="control-icon">WASD</span><div><b>FISHER</b><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mouse steer · <kbd>SPACE</kbd> cast / reel / catch</p></div></div>
+            <div class="control-card"><span class="control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m-9-9h18M5.6 5.6l12.8 12.8m0-12.8L5.6 18.4"/></svg></span><div><b>ENGINEER</b><p><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> alignment / engine · mouse to select and repair</p></div></div>
             <p class="controls-note">Online crew split the stations. Local co-op uses two players on one device; solo lets one player handle both.</p>
+          </section>
+          <section class="menu-page credits-page hidden" id="menu-credits" role="tabpanel" aria-labelledby="menu-credits-tab">
+            <div class="panel-heading"><span class="eyebrow">PROJECT CREDITS</span><span class="panel-index">CREW MANIFEST</span></div>
+            <h2>Built by a two-person crew.</h2>
+            <div class="credits-developers">
+              <article class="credit-card"><b>Liam Parsons</b><span>Director · Brainstormer</span><small>Game design and bug fixes</small></article>
+              <article class="credit-card"><b>Ryan Evans</b><span>Director · Brainstormer</span><small>Testing and writing</small></article>
+            </div>
+            <h3>Tools & services</h3>
+            <ul class="credits-tools">
+              <li><b>GitHub</b><span>Source control and project hosting</span></li>
+              <li><b>GitHub Pages</b><span>Static game-site hosting</span></li>
+              <li><b>GitHub Copilot</b><span>Coding assistance</span></li>
+              <li><b>ChatGPT</b><span>Fish-type brainstorming</span></li>
+              <li><b>HTML, CSS, and JavaScript</b><span>Browser game client</span></li>
+              <li><b>Render</b><span>WebSocket relay server hosting</span></li>
+              <li><b>Node.js + ws</b><span>Relay server runtime and WebSocket library</span></li>
+              <li><b>Google Fonts</b><span>DM Sans, DM Mono, and Manrope typefaces</span></li>
+            </ul>
           </section>
           <p class="connection-message" id="connection-message" role="status"></p>
         </div>
@@ -115,7 +149,7 @@
         <div class="stat"><span>DEPTH</span><b><span id="depth">0</span><small> m</small></b></div>
         <div class="stat"><span>CREW GOLD</span><b><span id="gold">0</span><small class="coin-mark" aria-label="gold">G</small></b></div>
         <div class="stat"><span>FISH CAUGHT</span><b id="caught-count">0</b></div>
-        <div class="checkpoint-stat"><div><span>NEXT CHECKPOINT</span><b><span id="checkpoint-distance">250</span> m</b></div><div class="meter"><i id="progress-meter"></i></div></div>
+        <div class="checkpoint-stat"><div><span>NEXT CHECKPOINT · <i class="checkpoint-fish-progress" id="checkpoint-fish-progress">0/5 FISH</i></span><b><span id="checkpoint-distance">150</span> m</b></div><div class="meter"><i id="progress-meter"></i></div></div>
       </section>
 
       <section class="sub-status" aria-label="Submarine systems">
@@ -126,12 +160,33 @@
         <div class="status-note" id="system-note">All systems nominal</div>
       </section>
 
+      <section class="crew-comms" aria-label="Crew quick chat">
+        <div class="chat-feed" id="quick-chat-feed" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="quick-chat hidden" id="quick-chat" aria-label="Quick chat">
+          <span>QUICK CHAT</span>
+          <button type="button" data-chat="Fish on the line!">Fish on!</button>
+          <button type="button" data-chat="Hull needs help!">Hull help!</button>
+          <button type="button" data-chat="Harpoon is broken!">Harpoon!</button>
+          <button type="button" data-chat="Repair the engine!">Engine!</button>
+          <button type="button" data-chat="Restock bait at the checkpoint!">Restock bait!</button>
+          <button type="button" data-chat="Let's buy the hull upgrade.">Hull upgrade?</button>
+          <button type="button" data-chat="Save our gold for bait.">Save for bait?</button>
+          <button type="button" data-chat="Sell the catch now?">Sell catch?</button>
+          <button type="button" data-chat="I vote for the fuel upgrade.">Fuel upgrade?</button>
+          <button type="button" data-chat="Hold our gold for the next checkpoint.">Hold gold?</button>
+          <button type="button" data-chat="Great catch!">Great catch!</button>
+          <button type="button" data-chat="I am cleaning the barnacles.">Cleaning barnacles</button>
+          <button type="button" data-chat="My fishing line is tangled!">Line tangled!</button>
+        </div>
+      </section>
+
       <div class="stations">
         <section class="station fisher-station" data-station="fisher">
           <header class="station-header"><div class="station-title"><span class="station-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v7a5 5 0 0 0 10 0V4m-5 7v3a5 5 0 0 0 5 5h4m-3-3 3 3-3 3"/></svg></span><div><h3>Fishing grounds</h3></div></div><span class="station-owner" id="fisher-owner">FISHER</span></header>
           <div class="ocean-scene">
             <img id="fish-image" alt="" hidden>
             <div class="ocean-silhouette" aria-hidden="true"><span>◉</span></div>
+            <div class="mission-timer fish-timer hidden" id="fisher-timer" aria-live="polite"><span>--</span><small>SEC</small></div>
             <div class="swimming-fish" id="swimming-fish" aria-label="Passing fish"></div>
             <div class="shoal-cursor hidden" id="shoal-cursor" aria-hidden="true"><span></span></div>
             <div class="ocean-copy"><span class="eyebrow" id="encounter-rarity">SCANNING THE DEEP</span><h4 id="encounter-title">The water is quiet</h4><p id="encounter-copy">A new catch could appear at any moment.</p></div>
@@ -141,7 +196,17 @@
             <div class="challenge-copy"><b id="fishing-task-title">Standing by</b><span id="fishing-task-help">Watch for a bite and follow the on-screen challenge.</span></div>
             <div class="challenge-actions" id="fishing-actions"><button class="action-button" disabled>Waiting for a bite</button></div>
           </div>
+          <div class="fisher-activity" id="fisher-activity">
+            <div class="activity-meter"><div><b>HULL BARNACLES</b><span id="barnacle-value">0%</span></div><div class="meter"><i id="barnacle-meter"></i></div></div>
+            <div class="activity-status" id="fisher-activity-status">Hull is clean. Stay alert for snags and barnacles.</div>
+            <button class="action-button fisher-activity-button" id="fisher-activity-button" type="button">Clean Barnacles</button>
+          </div>
           <div class="upgrade-summary" id="fisher-upgrade-summary">Harpoon power I <span>Reel-in bonus active</span></div>
+          <section class="barnacle-cleanup-overlay hidden" id="barnacle-cleanup-overlay" aria-labelledby="barnacle-cleanup-title">
+            <header><div><p class="eyebrow">HULL MAINTENANCE · FISHING PAUSED</p><h4 id="barnacle-cleanup-title">Scrape the barnacles</h4></div><b class="barnacle-cleanup-progress" id="barnacle-cleanup-progress">8 clusters left</b></header>
+            <p>Click every barnacle cluster to clear the hull and get back to fishing.</p>
+            <div class="barnacle-field cleanup-field" id="barnacle-cleanup-field" aria-label="Barnacle clusters to scrape"></div>
+          </section>
         </section>
 
         <section class="station engineer-station" data-station="engineer">
@@ -149,7 +214,7 @@
           <div class="engineer-board">
             <div class="mission-list" id="mission-list"></div>
             <div class="repair-panel hidden" id="repair-panel">
-              <div class="repair-heading"><div><p class="eyebrow" id="repair-room-label">ROOM</p><h4 id="repair-title">Repair mission</h4></div><button class="icon-button" id="close-repair" aria-label="Close repair mission">×</button></div>
+              <div class="repair-heading"><div><p class="eyebrow" id="repair-room-label">ROOM</p><h4 id="repair-title">Repair mission</h4></div><span class="mission-timer repair-timer hidden" id="repair-timer" aria-live="polite">--s</span><button class="icon-button" id="close-repair" aria-label="Close repair mission">×</button></div>
               <p class="repair-instructions" id="repair-instructions"></p>
               <div class="repair-challenge" id="repair-challenge"></div>
             </div>
@@ -161,6 +226,7 @@
       <section class="bottom-bar">
         <div class="crew-note"><span class="crew-dot"></span><span id="crew-message">A good crew keeps talking.</span></div>
         <span class="network-note" id="net-status">Connecting crew…</span>
+        <button class="collection-button" id="fish-log-button" type="button">Fish collection</button>
         <button class="shop-button hidden" id="shop-button"><span>⚓</span> Checkpoint shop <span aria-hidden="true">→</span></button>
       </section>
       <section class="shop-panel hidden" id="shop-panel">
@@ -169,14 +235,11 @@
         <div class="bait-restock"><span><b>Harpoon bait</b><small>One bait is used for each fishing encounter. Restock ten at a time.</small></span><button class="secondary-button" id="buy-bait">Restock 10 bait · 5 G</button></div>
         <div class="shop-actions"><button class="secondary-button" id="sell-button">Sell all fish <span id="inventory-value">+0 ◈</span></button><div class="upgrade-list" id="upgrade-list"></div></div>
       </section>
-      <div class="quick-chat hidden" id="quick-chat" aria-label="Quick chat">
-        <span>QUICK CHAT</span>
-        <button type="button" data-chat="Fish on the line!">Fish on!</button>
-        <button type="button" data-chat="Hull needs help!">Hull help!</button>
-        <button type="button" data-chat="Harpoon is broken!">Harpoon!</button>
-        <button type="button" data-chat="Repair the engine!">Engine!</button>
-        <button type="button" data-chat="Restock bait at the checkpoint!">Restock bait!</button>
-      </div>
+      <section class="fish-log-panel hidden" id="fish-log-panel" aria-labelledby="fish-log-title">
+        <div class="shop-heading"><div><p class="eyebrow">SPECIES INDEX</p><h3 id="fish-log-title">Fish collection</h3></div><button class="icon-button" id="close-fish-log" aria-label="Close fish collection">×</button></div>
+        <p id="fish-log-summary">Species discovered on this voyage: 0.</p>
+        <div class="fish-collection" id="fish-collection"></div>
+      </section>
       <section class="game-over hidden" id="game-over">
         <div><p class="eyebrow">EXPEDITION ENDED</p><b>The hull couldn't take any more.</b><span>Start a new voyage to give it another go.</span></div>
         <button class="secondary-button" id="restart-button">Start new voyage <span aria-hidden="true">→</span></button>
